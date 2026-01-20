@@ -1,0 +1,81 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\Abner\\Desktop\\Abner\\Core\\scripts\\MonoGameProjects\\ProjectE - Guild Keeper\\ProjectE - Guild Keeper.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\Abner\\Desktop\\Abner\\Core\\scripts\\MonoGameProjects\\ProjectE - Guild Keeper\\ProjectE - Guild Keeper.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\Abner\\Desktop\\Abner\\Core\\scripts\\MonoGameProjects\\ProjectE - Guild Keeper\\ProjectE - Guild Keeper.csproj",
+        "projectName": "ProjectE - Guild Keeper",
+        "projectPath": "C:\\Users\\Abner\\Desktop\\Abner\\Core\\scripts\\MonoGameProjects\\ProjectE - Guild Keeper\\ProjectE - Guild Keeper.csproj",
+        "packagesPath": "C:\\Users\\Abner\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Abner\\Desktop\\Abner\\Core\\scripts\\MonoGameProjects\\ProjectE - Guild Keeper\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\Abner\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "MonoGame.Content.Builder.Task": {
+              "target": "Package",
+              "version": "[3.8.*, )"
+            },
+            "MonoGame.Framework.DesktopGL": {
+              "target": "Package",
+              "version": "[3.8.*, )"
+            },
+            "Myra": {
+              "target": "Package",
+              "version": "[1.5.10, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}
