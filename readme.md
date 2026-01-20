@@ -1,8 +1,9 @@
+
 ---
 
 # 🏰 ProjectE - Guild Keeper
 
-**Guild Keeper** é um simulador de gerenciamento de guilda medieval desenvolvido em **MonoGame**. O jogador assume o papel de um mestre de guilda responsável por construir a base, recrutar heróis descartáveis e gerenciar o ciclo de vida de dungeons — que evoluem de ameaças mortais para minas de recursos lucrativas.
+"**Guild Keeper**" é um simulador de gerenciamento de guilda medieval desenvolvido em "**MonoGame**". O jogador assume o papel de um mestre de guilda responsável por construir a base, recrutar heróis descartáveis e gerenciar o ciclo de vida de dungeons — que evoluem de ameaças mortais para minas de recursos lucrativas.
 
 ---
 
