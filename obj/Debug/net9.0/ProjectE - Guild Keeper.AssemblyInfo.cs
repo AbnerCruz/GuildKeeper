@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ProjectE - Guild Keeper")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+184c8773b91fe5d4aa510366137c4173f9fdd899")]
 [assembly: System.Reflection.AssemblyProductAttribute("ProjectE - Guild Keeper")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ProjectE - Guild Keeper")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

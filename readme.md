@@ -1,101 +1,72 @@
-1. High Concept
-Um simulador de gerenciamento de guilda medieval onde o jogador constrói a base, recruta heróis descartáveis e gerencia o ciclo de vida das Dungeons: primeiro como ameaças a serem conquistadas, depois como minas de recursos a serem exploradas até a exaustão.
+---
 
-2. Pilares de Design
-Heróis são Investimentos: Eles têm permadeath. Perder um herói veterano dói financeiramente e estrategicamente.
+# 🏰 ProjectE - Guild Keeper
 
-O Ciclo da Dungeon: Combate (Risco) -> Mineração (Recompensa Passiva) -> Exaustão (Fim).
+**Guild Keeper** é um simulador de gerenciamento de guilda medieval desenvolvido em **MonoGame**. O jogador assume o papel de um mestre de guilda responsável por construir a base, recrutar heróis descartáveis e gerenciar o ciclo de vida de dungeons — que evoluem de ameaças mortais para minas de recursos lucrativas.
 
-Estética Funcional: A customização da base (móveis/decoração) impacta diretamente os status (Buffs passivos).
+---
 
-3. Mecânicas Core
-A. O Hub (A Guilda)
-Sistema: Grid 2D (Tilemap).
+## 🎯 High Concept
 
-Interação: O jogador coloca objetos em "slots".
+Gerencie uma guilda onde heróis são ativos financeiros, e a exploração não termina com a morte do boss, mas sim com a exaustão total dos recursos naturais da dungeon.
 
-Lógica: Objetos emitem buffs globais ou de área.
+## 💎 Pilares de Design
 
-Cama: Recupera HP/Stress dos heróis ociosos.
+* **Heróis como Investimento:** O *permadeath* torna a perda de veteranos um impacto financeiro e estratégico real.
+* **O Ciclo da Dungeon:** Combate (Risco)  Mineração (Recompensa Passiva)  Exaustão (Fim).
+* **Estética Funcional:** A customização da base não é apenas visual; móveis e decoração concedem buffs passivos essenciais.
 
-Mesa de Estratégia: Aumenta XP ganho em missões.
+---
 
-Decoração: Diminui ganho de stress geral.
+## ⚙️ Mecânicas Core
 
-B. Os Aventureiros (Assets)
-Atributos: Força (Dano), Vitalidade (HP), Velocidade (Tempo de missão).
+### A. O Hub (A Guilda)
 
-Stress/Humor:
+* **Sistema:** Grid 2D (Tilemap) com slots para objetos.
+* **Lógica de Buffs:**
+* **Cama:** Recuperação de HP/Stress para heróis ociosos.
+* **Mesa de Estratégia:** Bônus de XP em missões.
+* **Decoração:** Mitigação passiva de stress.
 
-Stress 100% = "Burnout" (Não trabalha/Sai da guilda).
 
-Recuperação: Precisa estar na base com recursos (Comida/Cama).
 
-Traits (Traços):
+### B. Os Aventureiros (Assets)
 
-Positivos: Robusto (+HP), Ganancioso (+Ouro no loot).
+* **Atributos:** Força (Dano), Vitalidade (HP) e Velocidade (Tempo de missão).
+* **Sistema de Stress:** Ao atingir 100%, o herói entra em *Burnout* (abandona a guilda ou para de trabalhar).
+* **Traits (Traços):**
+* 🟢 **Robusto:** Bônus de HP.
+* 🟢 **Ganancioso:** Mais ouro no loot.
+* 🔴 **Covarde:** Foge se o HP estiver abaixo de 20%.
+* 🔴 **Bêbado:** Consome ouro da guilda periodicamente.
 
-Negativos: Covarde (Foge se HP < 20%), Bêbado (Gasta ouro da guilda).
 
-C. As Dungeons (O Loop Duplo)
-O estado da Dungeon muda com o tempo:
 
-Fase 1: Ameaça (Ativa): Requer Heróis de Combate. Tem HP e Dano.
+### C. As Dungeons (Loop Duplo)
 
-Ação: Enviar Party.
+1. **Fase 1: Ameaça (Ativa):** Requer heróis de combate. O objetivo é derrotar o Boss.
+2. **Fase 2: Mina (Passiva):** Após a vitória, a dungeon torna-se uma mina. Requer alocação de mineradores para extração de ferro e pedra até que os recursos se esgotem (Idle).
 
-Resultado: Dano nos heróis, XP, Loot inicial.
+---
 
-Vitória: Quando o "Boss" morre, a fase muda.
+## 🚀 Roteiro de Desenvolvimento (MVP)
 
-Fase 2: Mina (Passiva): Requer Trabalhadores (Mineradores).
+### Fase 1: Lógica "Invisible" (Core Engine)
 
-Ação: Enviar Mineradores (Unidades baratas/fracas).
+* [ ] Implementação das classes `Hero`, `Dungeon` e `ResourceBank`.
+* [ ] Gerador procedural de atributos de Dungeons.
+* [ ] Sistema de combate matemático (Dano vs. HP) sem interface.
+* [ ] Lógica de conversão de estado: `Dungeon (HP <= 0) -> Mina`.
 
-Resultado: Gera recursos (Ferro/Pedra) por segundo (Idle).
+### Fase 2: Base Visual (MonoGame Basic)
 
-Fim: A mina tem um total de recursos (ex: 5000 minérios). Quando zera, o local desaparece do mapa.
+* [ ] Renderização de Grid System (10x10).
+* [ ] UI Base: Botões de Recrutamento e Construção usando `Rectangle`.
+* [ ] Sprites de entidades e barras de status (HP/Stress) flutuantes.
 
-🚀 Roteiro do MVP (Minimum Viable Product)
-Como você tem urgência e é um dev solo usando MonoGame, não tente fazer tudo de uma vez. Siga esta ordem estrita para garantir que o jogo seja jogável o mais rápido possível.
+### Fase 3: Loop de Gameplay
 
-Fase 1: A Lógica "Invisible" (Sem Gráficos)
-Objetivo: Validar a matemática e o loop de recursos.
-
-Estrutura de Dados: Criar classes Hero, Dungeon, ResourceBank.
-
-Gerador de Dungeons: Criar método que gera uma dungeon com Dificuldade, HP_Inimigo e Riqueza_Minerio.
-
-Sistema de Combate (Simulação): Método ProcessMission(Party party, Dungeon dungeon).
-
-Calcula dano recebido vs dano causado.
-
-Reduz HP dos heróis.
-
-Retorna Loot.
-
-Conversão: Lógica que transforma uma Dungeon (HP = 0) em uma Mina.
-
-Fase 2: A Base Visual (MonoGame Basic)
-Objetivo: Ter algo para olhar e clicar.
-
-Grid System: Renderizar uma matriz 10x10 de tiles (chão de madeira).
-
-UI Básica: Criar botões (Rectangles) para "Recrutar", "Missões", "Construir".
-
-Renderização de Entidades: Desenhar os heróis como ícones/sprites parados em cima do Grid.
-
-Nota: Não faça pathfinding agora. Apenas desenhe eles em posições aleatórias válidas ou designadas.
-
-Feedback Visual: Barras de HP e Stress em cima da cabeça dos heróis.
-
-Fase 3: O Loop Completo (Jogável)
-Objetivo: O jogo diverte e fecha o ciclo.
-
-Menu de Expedição: Uma janela (Pop-up) que lista as dungeons. O jogador clica na dungeon -> clica nos heróis -> botão "Enviar".
-
-Timer System: Implementar o tempo real. Heróis somem da base (estado OnMission) e voltam após X segundos.
-
-Mineração: Implementar a UI para alocar mineradores nas dungeons vencidas.
-
-Loja de Móveis: Gastar o Ouro ganho para colocar uma "Cama" no Grid que matematicamente recupera o HP.
+* [ ] Menu de Expedição (Seleção de Heróis -> Envio).
+* [ ] Timer System para missões em tempo real.
+* [ ] Sistema de alocação de mineradores.
+* [ ] Loja de móveis com persistência de buffs no Grid.
