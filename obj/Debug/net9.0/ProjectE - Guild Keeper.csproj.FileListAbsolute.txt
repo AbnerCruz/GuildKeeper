@@ -42,3 +42,4 @@ C:\Users\Abner\Desktop\Abner\Core\scripts\MonoGameProjects\ProjectE - Guild Keep
 C:\Users\Abner\Desktop\Abner\Core\scripts\MonoGameProjects\ProjectE - Guild Keeper\obj\Debug\net9.0\ProjectE - Guild Keeper.pdb
 C:\Users\Abner\Desktop\Abner\Core\scripts\MonoGameProjects\ProjectE - Guild Keeper\obj\Debug\net9.0\ProjectE - Guild Keeper.genruntimeconfig.cache
 C:\Users\Abner\Desktop\Abner\Core\scripts\MonoGameProjects\ProjectE - Guild Keeper\obj\Debug\net9.0\ref\ProjectE - Guild Keeper.dll
+C:\Users\Abner\Desktop\Abner\Core\scripts\MonoGameProjects\ProjectE - Guild Keeper\obj\Debug\net9.0\ProjectE - Guild Keeper.sourcelink.json

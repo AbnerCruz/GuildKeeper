@@ -11,7 +11,7 @@ public class Guild
     public int Gold;
     public int Debt;
 
-    public int Level { get; set; } = 10;
+    public int Level { get; set; } = 1;
     public int XP { get; set; }
     public int MaxXP => Level * 1000;
 
@@ -69,7 +69,9 @@ public class Guild
 
         for (int x = 0; x < quantity; x++)
         {
-            Hero newHero = new Hero(Rng.Rand.Next(1, level + 1));
+            //Hero newHero = new Hero(this, Rng.Rand.Next(1, level + 1));
+
+            Hero newHero = new Hero(this, Class.Support, 1);
             newHero.Transform = new Transform(World.Map.GetSpawnPosition() + newHero.Transform.Size / 2);
 
             Applicants.Add(newHero);

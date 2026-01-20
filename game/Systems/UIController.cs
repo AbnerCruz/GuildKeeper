@@ -371,9 +371,6 @@ public class UIController
         grid.ColumnsProportions.Add(new Proportion(ProportionType.Auto));
         grid.RowsProportions.Add(new Proportion(ProportionType.Auto));
 
-        var damagesText = string.Join(" , ", hero.Damages.Select(d => $"{d.ToString()}"));
-        var resistancesText = string.Join(" , ", hero.Resistances.Select(r => $"{r.ToString()}"));
-
         var infoStack = new VerticalStackPanel();
 
         var nameLabel = new Label { Text = $"{hero.Name}" };
@@ -381,7 +378,7 @@ public class UIController
 
         infoStack.Widgets.Add(nameLabel);
         infoStack.Widgets.Add(new Label { Text = $"{hero.Class} | Wage: {hero.Wage}g", TextColor = Color.LightGray });
-        infoStack.Widgets.Add(new Label { Text = $"Damages: {damagesText} | Resistances: {resistancesText}" });
+        infoStack.Widgets.Add(new Label { Text = $"Element: {hero.Element.Type}" });
 
 
         var statsLabel = new Label { Text = $"HP: {hero.HP}/{hero.MaxHP} | Energy: {hero.Energy}/{hero.MaxEnergy} | Mana: {hero.Mana}/{hero.MaxMana}" };

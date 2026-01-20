@@ -34,7 +34,6 @@ public class World
         Guild.RefreshApplicants(true, 5, 1);
         Guild.RefreshAvailableDungeons(true, 5, 1);
         Guild.BuyDungeon(new(this, 1));
-
         UIController.Build();
     }
 

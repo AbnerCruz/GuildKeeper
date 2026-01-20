@@ -77,13 +77,14 @@ public class Hero : Entity
         get
         {
             int baseDmg = 0;
-            if (Class == Class.Ranger)
-                baseDmg = (int)(Dexterity * 1.3f + Strength * 0.5f);
+            if (Class == Class.Ranger) baseDmg = (int)(Dexterity * 1.4f + Strength * 0.5f);
+            else if(Class == Class.Tank) baseDmg = (int)(Strength * 0.8f + Constitution * 0.5f);
+
             else
-                baseDmg = (int)(Strength * 1.5f + Dexterity * 0.3f);
+                baseDmg = (int)(Strength * 1.3f + Dexterity * 0.3f);
 
             int totalDmg = baseDmg + EquipmentPhysicalDamage;
-            if (Stressed) totalDmg = (int)(totalDmg * 0.5f);
+            if (Stressed) totalDmg = (int)(totalDmg * 0.7f);
             return Math.Max(1, totalDmg);
         }
     }
@@ -93,10 +94,10 @@ public class Hero : Entity
         {
             int baseDmg = 0;
             if (Class == Class.Support)
-                baseDmg = (int)(Charisma * 1.3f + Wisdom * 0.5f);
+                baseDmg = (int)(Charisma * 1.3f + Wisdom * 0.2f);
             else if(Class == Class.Mage)
             {
-                baseDmg = (int)(Wisdom * 1.5f + Charisma * 0.5f);
+                baseDmg = (int)(Wisdom * 1.4f + Charisma * 0.4f);
             }
             else
                 baseDmg = 0;
@@ -108,12 +109,11 @@ public class Hero : Entity
             return Math.Max(1, totalDmg);
         }
     }
-    public int Armour => Math.Max(1, (int)(Constitution * 0.5f) + (int)(Dexterity * 0.2f) + EquipmentArmour);
+    public int Armour => Math.Max(1, (int)(Constitution * 0.7f) + (int)(Dexterity * 0.2f) + EquipmentArmour);
 
     public int Speed => Math.Min(15, 5 + (Dexterity / 4));
 
-    public List<Elements> Damages { get; set; } = new(){Elements.Physical};
-    public List<Elements> Resistances { get; set; } = new(){Elements.None};
+    public ElementInfo Element;
 
     public List<Equipment> Equipment;
 
@@ -122,9 +122,11 @@ public class Hero : Entity
     private Vector2 _wanderDirection;
     private bool _isWalking = false; 
 
-    public Hero(int baseHp, int baseMana, int baseEnergy, int strength, int dexterity, int constitution, int wisdom, int charisma)
+    public Hero(Guild guild, int baseHp, int baseMana, int baseEnergy, int strength, int dexterity, int constitution, int wisdom, int charisma)
     {
+        Guild = guild;
         Race = Creatures.Human;
+        Element = new(ElementType.None);
         BaseHP = baseHp;
         BaseMana = baseMana;
         BaseEnergy = baseEnergy;
@@ -143,16 +145,21 @@ public class Hero : Entity
         RestoreVitals();
     }
 
-    public Hero() : this(10, 10, 10, 1, 1, 1, 1, 1) { }
+    public Hero(Guild guild) : this(guild, 10, 10, 10, 1, 1, 1, 1, 1) { }
     
-    public Hero(int level) : this(10, 10, 10, 1, 1, 1, 1, 1)
+    public Hero(Guild guild, int level) : this(guild, 10, 10, 10, 1, 1, 1, 1, 1)
     {
         RandomInitialAttributes(level);
     }
 
-    public Hero(Transform transform) : this(10, 10, 10, 1, 1, 1, 1, 1)
+    public Hero(Guild guild, Transform transform) : this(guild, 10, 10, 10, 1, 1, 1, 1, 1)
     {
         Transform = transform;
+    }
+
+    public Hero(Guild guild, Class heroClass, int level) : this(guild, 10, 10, 10, 1, 1, 1, 1, 1)
+    {
+        RandomInitialAttributes(level, heroClass);
     }
 
     public override void Update()
@@ -168,7 +175,7 @@ public class Hero : Entity
 
     public void RestoreVitals()
     {
-        Name = $"{Race.ToString()} {Class} Lvl: {Level}";
+        Name = $"{Race} {Element.Type} {Class} Lvl: {Level}";
         HP = MaxHP;
         Mana = MaxMana;
         Energy = MaxEnergy;
@@ -176,111 +183,100 @@ public class Hero : Entity
         Stressed = false;
     }
 
-    public void RandomInitialAttributes(int level)
+    public void RandomInitialAttributes(int level, Class? forcedClass = null)
     {
-        Level = level;
+        Level = 0;
 
-        var classValues = Enum.GetValues(typeof(Class));
-        Class = (Class)classValues.GetValue(Rng.Rand.Next(classValues.Length));
-
-        BaseStrength = Rng.Rand.Next(1, 10);
-        BaseDexterity = Rng.Rand.Next(1, 10);
-        BaseConstitution = Rng.Rand.Next(1, 10);
-        BaseWisdom = Rng.Rand.Next(1, 10);
-        BaseCharisma = Rng.Rand.Next(1, 10);
+        if (forcedClass.HasValue)
+        {
+            Class = forcedClass.Value;
+        }
+        else
+        {
+            Class = Rng.RandEnum<Class>();
+        }
+        BaseStrength = Rng.Rand.Next(1, 8);
+        BaseDexterity = Rng.Rand.Next(1, 8);
+        BaseConstitution = Rng.Rand.Next(1, 8);
+        BaseWisdom = Rng.Rand.Next(1, 8);
+        BaseCharisma = Rng.Rand.Next(1, 8);
         ApplyClassArchetype();
 
-        int levelBonus = Level/5;
-        Strength = BaseStrength + levelBonus;
-        Dexterity = BaseDexterity + levelBonus;
-        Constitution = BaseConstitution + levelBonus;
-        Wisdom = BaseWisdom + levelBonus;
-        Charisma = BaseCharisma + levelBonus;
+        Strength = BaseStrength;
+        Dexterity = BaseDexterity;
+        Constitution = BaseConstitution;
+        Wisdom = BaseWisdom;
+        Charisma = BaseCharisma;
 
         BaseHP = 15 + BaseConstitution;
         BaseMana = 10 + BaseWisdom;
         BaseEnergy = 10 + BaseDexterity;
+
+        for(int i = 0; i < level; i++)
+        {
+            LevelUp();
+        }
 
         RestoreVitals();
     }
 
     private void ApplyClassArchetype()
     {
-        int primaryBonus = 5;
-        int secondaryBonus = 2;
-
-        Damages.Clear();
-        Resistances.Clear();
+        int hugeBonus = 4;
+        int moderateBonus = 2;
+        int hugePenality = 4;
+        int moderatePenality = 2;
 
         switch (Class)
         {
             case Class.Warrior:
-                BaseStrength += primaryBonus;
-                BaseConstitution += secondaryBonus;
-                SetRandomDamage(Elements.Physical, Elements.Fire);
-                SetRandomResistances(Elements.Physical, Elements.Fire);
+                BaseStrength += hugeBonus;
+                BaseConstitution += moderateBonus;
+                SetRandomElement(ElementType.Earth, ElementType.Fire, ElementType.Ice, ElementType.Lightning, ElementType.Poison);
                 break;
 
             case Class.Mage:
-                BaseWisdom += primaryBonus;
-                BaseCharisma += secondaryBonus;
-                BaseDexterity = Math.Max(1, BaseDexterity - 1);
-                BaseStrength = Math.Max(1, BaseStrength - 1);
-                SetRandomDamage(Elements.Fire, Elements.Water, Elements.Earth, Elements.Air, Elements.Darkness);
-                SetRandomResistances(Elements.Fire, Elements.Water, Elements.Earth, Elements.Air, Elements.Darkness);
+                BaseWisdom += hugeBonus;
+                BaseCharisma += moderateBonus;
+                BaseDexterity = Math.Max(1, BaseDexterity - moderatePenality);
+                BaseStrength = Math.Max(1, BaseStrength - moderatePenality);
+                SetRandomElement(ElementType.Air, ElementType.Darkness, ElementType.Earth, ElementType.Fire, ElementType.Ice, ElementType.Light, ElementType.Lightning, ElementType.Water);
                 break;
 
             case Class.Tank:
-                BaseConstitution += primaryBonus;
-                BaseCharisma += secondaryBonus;
-                BaseStrength = Math.Max(1, BaseStrength - 2);
-                BaseWisdom = Math.Max(1, BaseWisdom - 4);
-                SetRandomDamage(Elements.Physical, Elements.Earth);
-                SetRandomResistances(Elements.Physical, Elements.Earth);
+                BaseConstitution += hugeBonus;
+                BaseCharisma += moderateBonus;
+                BaseDexterity = Math.Max(1, BaseDexterity - moderatePenality);
+                BaseWisdom = Math.Max(1, BaseWisdom - hugePenality);
+                SetRandomElement(ElementType.Earth, ElementType.Light, ElementType.Ice);
                 break;
 
             case Class.Ranger:
-                BaseDexterity += primaryBonus;
-                BaseStrength += secondaryBonus;
-                BaseConstitution = Math.Max(1, BaseConstitution - 2);
-                SetRandomDamage(Elements.Physical, Elements.Poison, Elements.Air);
-                SetRandomResistances(Elements.None);
+                BaseDexterity += hugeBonus;
+                BaseStrength += moderateBonus;
+                BaseConstitution = Math.Max(1, BaseConstitution - moderatePenality);
+                SetRandomElement(ElementType.Fire, ElementType.Ice, ElementType.Poison);
                 break;
 
             case Class.Support:
-                BaseCharisma += primaryBonus;
-                BaseWisdom += secondaryBonus;
-                BaseStrength -= Math.Max(1, BaseStrength - 4);
-                BaseConstitution -= Math.Max(1, BaseConstitution - 1);
-                SetRandomDamage(Elements.Water, Elements.Air);
-                SetRandomResistances(Elements.None);
+                BaseCharisma += hugeBonus;
+                BaseWisdom += moderateBonus;
+                BaseStrength = Math.Max(1, BaseStrength - hugePenality);
+                BaseConstitution = Math.Max(1, BaseConstitution - moderatePenality);
+                SetRandomElement(ElementType.Water, ElementType.Light, ElementType.Air);
                 break;
         }
     }
 
-    private void SetRandomDamage(params Elements[] allowedTypes)
+    private void SetRandomElement(params ElementType[] allowedTypes)
     {
-        if (allowedTypes.Length > 0)
-        {
-            int index = Rng.Rand.Next(0, allowedTypes.Length);
-            Damages.Add(allowedTypes[index]);
-        }
+        var rng = Rng.Rand.NextDouble();
+        if (rng < 0.1) Element = new(Rng.RandEnum<ElementType>());
+        else if(rng < 0.4) Element = new(ElementType.None);
         else
         {
-            Damages.Add(Elements.Physical);
-        }
-    }
-
-    private void SetRandomResistances(params Elements[] allowedTypes)
-    {
-        if (allowedTypes.Length > 0)
-        {
             int index = Rng.Rand.Next(0, allowedTypes.Length);
-            Resistances.Add(allowedTypes[index]);
-        }
-        else
-        {
-            Resistances.Add(Elements.None);
+            Element = new(allowedTypes[index]);
         }
     }
 
@@ -328,20 +324,6 @@ public class Hero : Entity
                 Time.ResetTimer(ref WalkTimer, Rng.Rand.Next(1, 10));
             }
         }
-    }
-
-    public override int CalculateMitigation(float damage, Elements damageElement)
-    {
-        int damageTaken = (int)(damage - Armour);
-
-        if (damageTaken < 0) damageTaken = 0;
-        if (damageTaken == 0 && Rng.Rand.NextDouble() > 0.5) damageTaken = 1;
-
-        if (Resistances.Contains(damageElement))
-        {
-            damageTaken = Math.Max(1, (int)(damageTaken * 0.8f));
-        }
-        return damageTaken;
     }
 
     public int TakeDamage(int damage)
@@ -394,37 +376,55 @@ public class Hero : Entity
     public void LevelUp()
     {
         Level++;
-        LevelUpPoints += 5;
+        LevelUpPoints += 3;
         AutoDistributeAttributePoints();
         RestoreVitals();
-        UIController.WorldInstance.BuildUI();
+        Guild?.World?.BuildUI();
     }
 
     public void AutoDistributeAttributePoints()
     {
+        int attributesCount = 5;
+        double classFocusChance = 0.4;
         while (LevelUpPoints > 0)
         {
-            int roll = Rng.Rand.Next(0, 5);
-            switch (Class)
+            bool prioritizeAttributes = Rng.Rand.NextDouble() > classFocusChance;
+            if (prioritizeAttributes)
             {
-                case Class.Warrior:
-                    if (roll < 3) Strength++; else Constitution++;
-                    break;
-                case Class.Ranger:
-                    if (roll < 3) Dexterity++; else Strength++;
-                    break;
-                case Class.Mage:
-                    if (roll < 3) Wisdom++; else Charisma++;
-                    break;
-                case Class.Tank:
-                    if (roll < 3) Constitution++; else Strength++;
-                    break;
-                case Class.Support:
-                    if (roll < 3) Charisma++; else Wisdom++;
-                    break;
-                default:
-                    Strength++;
-                    break;
+                int roll = Rng.Rand.Next(0, attributesCount);
+                switch (Class)
+                {
+                    case Class.Warrior:
+                        if (roll < 3) Strength++; else Constitution++;
+                        break;
+                    case Class.Ranger:
+                        if (roll < 3) Dexterity++; else Strength++;
+                        break;
+                    case Class.Mage:
+                        if (roll < 3) Wisdom++; else Charisma++;
+                        break;
+                    case Class.Tank:
+                        if (roll < 3) Constitution++; else Strength++;
+                        break;
+                    case Class.Support:
+                        if (roll < 3) Charisma++; else Wisdom++;
+                        break;
+                    default:
+                        Strength++;
+                        break;
+                }
+            }
+            else
+            {
+                int roll = Rng.Rand.Next(0, attributesCount);
+                switch (roll)
+                {
+                    case 0: Strength++; break;
+                    case 1: Dexterity++; break;
+                    case 2: Constitution++; break;
+                    case 3: Wisdom++; break;
+                    case 4: Charisma++; break;
+                }
             }
             LevelUpPoints--;
         }

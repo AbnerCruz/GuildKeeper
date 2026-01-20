@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -32,18 +33,30 @@ public class Entity
     {
         return this.Class switch
         {
-            Class.Warrior => 80,
-            Class.Tank => 90,
-            Class.Ranger => 75,
-            Class.Mage => 80,
-            Class.Support => 90,
+            Class.Warrior => 85,
+            Class.Tank => 95,
+            Class.Ranger => 80,
+            Class.Mage => 85,
+            Class.Support => 95,
             _ => 100
         };
     }
 
-    public virtual int CalculateMitigation(float damage, Elements damageElement)
+    public virtual int CalculateMitigation(float damage, ElementType attackerElement, ElementInfo targetElement, int targetArmour)
     {
-        return (int)damage;
+        int damageTaken = Math.Max(1, (int)(damage - targetArmour));
+        float multiplier = 1f;
+        if (targetElement.StrongAgainst.Contains(attackerElement) || targetElement.Type == attackerElement)
+        {
+            multiplier = 0.5f;
+        }
+        else if (targetElement.WeakAgainst.Contains(attackerElement))
+        {
+            multiplier = 1.5f;
+        }
+        damageTaken = (int)(damageTaken * multiplier);
+        damageTaken = (damageTaken <= 0) ? 1 : damageTaken;
+        return damageTaken;
     }
 
     public virtual int GetAccuracy()

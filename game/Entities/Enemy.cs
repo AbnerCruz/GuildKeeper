@@ -9,21 +9,19 @@ public class Enemy : Entity
     public int Armour;
     public int Dexterity;
     public int Initiative;
-    public Elements DamageElement;
-    public Elements ResistanceElement;
+    public ElementInfo Element;
 
-    public Enemy(int level, int partySize, Creatures creature, Class enemyClass, Elements damageElement = Elements.Physical, Elements resistanceElement = Elements.None)
+    public Enemy(int level, int partySize, Creatures creature, Class enemyClass, ElementInfo element)
     {
         Level = level;
         Race = creature;
         Class = enemyClass;
-        DamageElement = damageElement;
-        ResistanceElement = resistanceElement;
+        Element = element;
 
         float partyScaling = (float)Math.Sqrt(partySize);
-        MaxHP = (int)((20 + (level * 5)) * partyScaling - 1);
+        MaxHP = (int)(20 + (level * 5));
         HP = MaxHP; 
-        Damage = Rng.Rand.Next(1, 10) + level;
+        Damage = (int)(level * 1.5f) + Rng.Rand.Next(5, 10); ;
 
         Dexterity = Rng.Rand.Next(1, 10) + level/5;
         Armour = 5 + level / 2;
@@ -31,7 +29,7 @@ public class Enemy : Entity
         ApplyClassArchetype();
 
         Initiative = Rng.Rand.Next(Dexterity / 2, Dexterity * 2);
-        Name = $"{Race.ToString()} {Class} lvl {Level}";
+        Name = $"{Race.ToString()} {Element.Type} {Class} lvl {Level}";
     }
 
     private void ApplyClassArchetype()
@@ -60,23 +58,13 @@ public class Enemy : Entity
             case Class.Mage:
                 Damage = (int)(Damage * 1.6f);
                 HP = (int)(HP * 0.6f);
-                Armour = Level;
+                Armour = Level / 4;
                 break;
 
             case Class.Support:
-                Damage = (int)(Damage * 0.5f);
+                Damage = (int)(Damage * 1f);
                 break;
         }
-    }
-
-    public override int CalculateMitigation(float damage, Elements damageElement)
-    {
-        int damageTaken = Math.Max(1, (int)(damage - Armour));
-        if (ResistanceElement == damageElement)
-        {
-            damageTaken = Math.Max(1, (int)(damageTaken * 0.7));
-        }
-        return damageTaken;
     }
 
     public int TakeDamage(int damage)
