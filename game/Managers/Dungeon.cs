@@ -52,7 +52,7 @@ public class Dungeon
 
     public Dungeon(World world, int level, int rooms) : this(world, level, rooms, new()) { }
     public Dungeon(World world) : this(world, Rng.Rand.Next(1, 10), Rng.Rand.Next(1, 10)) { }
-    public Dungeon(World world, int level) : this(world, level, Rng.Rand.Next(1, level + 1)) { }
+    public Dungeon(World world, int level) : this(world, level, Rng.Rand.Next(1, level + 2)) { }
 
     public void GenerateRooms(int quantity)
     {
@@ -74,7 +74,7 @@ public class Dungeon
             var randomCreature = Biome.GetRandomNativeCreature();
             var randomClass = Rng.RandEnum<Class>();
 
-            list.Add(new Enemy(Level, GuildParty.Count, randomCreature,randomClass, new(sortedElement)));
+            list.Add(new Enemy(Level));
         }
         return list;
     }

@@ -48,11 +48,11 @@ public class Entity
         float multiplier = 1f;
         if (targetElement.StrongAgainst.Contains(attackerElement) || targetElement.Type == attackerElement)
         {
-            multiplier = 0.5f;
+            multiplier = 0.7f;
         }
         else if (targetElement.WeakAgainst.Contains(attackerElement))
         {
-            multiplier = 1.5f;
+            multiplier = 1.2f;
         }
         damageTaken = (int)(damageTaken * multiplier);
         damageTaken = (damageTaken <= 0) ? 1 : damageTaken;

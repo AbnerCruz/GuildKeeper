@@ -65,7 +65,7 @@ public class CombatManager
                                 target = interceptor;
                             }
                         }
-                        var attack = CalculateAttack(enemy, target, enemy.Damage, enemy.Element.Type);
+                        var attack = CalculateAttack(enemy, target, enemy.PhysicalDamage, enemy.Element.Type);
 
                         if (attack.IsHit)
                         {
@@ -93,9 +93,9 @@ public class CombatManager
                     case Class.Support:
                         var woundedAlly = room.Enemies.FirstOrDefault(e => e != enemy && e.HP > 0 && e.HP < e.MaxHP);
 
-                        if (woundedAlly != null)
+                        if (woundedAlly != null && enemy.RollDice() > 30)
                         {
-                            var heal = CalculateHeal(enemy, enemy.Damage);
+                            var heal = CalculateHeal(enemy, enemy.MagicPower);
                             if (heal.IsHit)
                             {
                                 int healAmount = heal.FinalDamage;
@@ -129,11 +129,12 @@ public class CombatManager
                             if (target.Class != Class.Tank)
                             {
                                 var enemyTanks = room.Enemies.Where(e => e.Class == Class.Tank && e.HP > 0).ToList();
-                                if (enemyTanks.Count > 0 && Rng.Rand.NextDouble() < 0.20)
+                                if (enemyTanks.Count > 0 && Rng.Rand.NextDouble() < 0.10)
                                 {
                                     var interceptor = enemyTanks[Rng.Rand.Next(enemyTanks.Count)];
                                     Dungeon.Logs.Add($"🛑[{interceptor.Initiative}]{interceptor.Name} entrou na frente do ataque em {target.Name}!");
                                     target = interceptor;
+                                    target.Energy--;
                                 }
                             }
 
@@ -176,6 +177,7 @@ public class CombatManager
                                     var interceptor = enemyTanks[Rng.Rand.Next(enemyTanks.Count)];
                                     Dungeon.Logs.Add($"🛑[{interceptor.Initiative}]{interceptor.Name} protegeu {target.Name} do feitiço!");
                                     target = interceptor;
+                                    target.Energy--;
                                 }
                             }
                             if (hero.Mana > 0)
@@ -204,7 +206,7 @@ public class CombatManager
                     case Class.Support:
                         var lowestAlly = GuildParty.Where(a => a != hero && a.HP > 0 && a.HP < a.MaxHP).OrderBy(a => a.HP).FirstOrDefault();
 
-                        if (lowestAlly != null)
+                        if (lowestAlly != null && hero.RollDice() > 30)
                         {
                             if (hero.Mana > 0)
                             {
@@ -243,6 +245,7 @@ public class CombatManager
                                         var interceptor = enemyTanks[Rng.Rand.Next(enemyTanks.Count)];
                                         Dungeon.Logs.Add($"🛑[{interceptor.Initiative}]{interceptor.Name} protegeu {target.Name} do feitiço!");
                                         target = interceptor;
+                                        target.Energy--;
                                     }
                                 }
                                 if (hero.Mana > 0)
@@ -312,7 +315,7 @@ public class CombatManager
         }
         else if (dice <= 10)
         {
-            multiplier = 0.5f;
+            multiplier = 0.8f;
         }
         int damageDealt = 0;
         switch (target)
@@ -335,7 +338,7 @@ public class CombatManager
     public AttackResult CalculateHeal(Entity healer, int baseHeal)
     {
         var result = new AttackResult();
-        result.IsHit = healer.RollDice() > 25;
+        result.IsHit = healer.RollDice() > 30;
         result.LogMessage = result.IsHit ? "" : $"⛓️‍💥 {healer.Name} não conseguiu se concentrar";
 
         int critThreshold = healer.GetCritThreshold();

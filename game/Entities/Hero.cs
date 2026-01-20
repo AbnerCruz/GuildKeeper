@@ -27,15 +27,15 @@ public class Hero : Entity
     public int Charisma;
     
     public int BaseHP;
-    public int MaxHP => BaseHP + (int)(Constitution * 1.2f) + ((Level - 1) * 10);
+    public int MaxHP => BaseHP + (int)(Constitution * 1.5f) + ((Level - 1) * 10);
     public int HP;
 
     public int BaseMana;
-    public int MaxMana => Math.Max(1, (BaseMana + Wisdom) * Level);
+    public int MaxMana => Math.Max(1, 10 + (BaseMana + Wisdom + (int)(Constitution * 0.5)) + Level);
     public int Mana;
 
     public int BaseEnergy;
-    public int MaxEnergy => Math.Max(1, (BaseEnergy + (int)(Constitution * 1) + (int)(Charisma * 0.5)) + Level);
+    public int MaxEnergy => Math.Max(1, (BaseEnergy + Constitution + (int)(Charisma * 0.5)) + Level);
     public int Energy;
 
     public int BaseSatisfaction;
@@ -77,14 +77,14 @@ public class Hero : Entity
         get
         {
             int baseDmg = 0;
-            if (Class == Class.Ranger) baseDmg = (int)(Dexterity * 1.4f + Strength * 0.5f);
+            if (Class == Class.Ranger) baseDmg = (int)(Dexterity * 1.3f + Strength * 0.5f);
             else if(Class == Class.Tank) baseDmg = (int)(Strength * 0.8f + Constitution * 0.5f);
 
             else
                 baseDmg = (int)(Strength * 1.3f + Dexterity * 0.3f);
 
             int totalDmg = baseDmg + EquipmentPhysicalDamage;
-            if (Stressed) totalDmg = (int)(totalDmg * 0.7f);
+            if (Stressed) totalDmg = (int)(totalDmg * 0.5f);
             return Math.Max(1, totalDmg);
         }
     }
@@ -94,7 +94,7 @@ public class Hero : Entity
         {
             int baseDmg = 0;
             if (Class == Class.Support)
-                baseDmg = (int)(Charisma * 1.3f + Wisdom * 0.2f);
+                baseDmg = (int)(Charisma * 1.2f + Wisdom * 0.1f);
             else if(Class == Class.Mage)
             {
                 baseDmg = (int)(Wisdom * 1.4f + Charisma * 0.4f);
@@ -246,7 +246,7 @@ public class Hero : Entity
             case Class.Tank:
                 BaseConstitution += hugeBonus;
                 BaseCharisma += moderateBonus;
-                BaseDexterity = Math.Max(1, BaseDexterity - moderatePenality);
+                BaseDexterity = Math.Max(1, BaseDexterity - hugePenality);
                 BaseWisdom = Math.Max(1, BaseWisdom - hugePenality);
                 SetRandomElement(ElementType.Earth, ElementType.Light, ElementType.Ice);
                 break;
