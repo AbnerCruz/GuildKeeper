@@ -15,6 +15,7 @@ public class World
     private InputManager _inputManager = new InputManager();
     public Guild Guild;
     public static TileMap Map { get; private set; }
+    public WorldTimeManager WorldTimeManager;
 
     public static List<Entity> Entities = new();
 
@@ -30,21 +31,23 @@ public class World
     public void Start()
     {
         Map = new();
+        WorldTimeManager = new(this);
         Guild = new(this, "Immortals");
         Guild.RefreshApplicants(true, 5, 1);
         Guild.RefreshAvailableDungeons(true, 5, 1);
-        Guild.BuyDungeon(new(this, 1));
         UIController.Build();
     }
 
     public void Update()
     {
         _inputManager.Update();
+        WorldTimeManager.Update();
         Map.Update();
         for (int i = Entities.Count - 1; i >= 0; i--)
         {
             Entities[i].Update();
         }
+        UIController.UpdateRealtimeValues();
     }
 
     public void Draw()

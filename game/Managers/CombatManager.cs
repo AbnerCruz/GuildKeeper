@@ -2,374 +2,358 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 
+
 public class CombatManager
 {
-    Dungeon Dungeon;
-    public struct AttackResult
+    public CombatContext Context = new();
+    public class CombatContext
     {
-        public int FinalDamage;
-        public bool IsCritical;
-        public bool IsHit;
-        public string LogMessage;
+        public Dungeon Dungeon { get; set; }
+        public DungeonRoom Room { get; set; }
+        public List<Hero> Party { get; set; }
+
+        public List<Entity> AlliesOf(Entity entity)
+        {
+            return entity is Hero ? Party.Cast<Entity>().ToList() : Room.Enemies.Cast<Entity>().ToList();
+        }
+
+        public List<Entity> EnemiesOf(Entity entity)
+        {
+            return entity is Hero ? Room.Enemies.Cast<Entity>().ToList() : Party.Cast<Entity>().ToList();
+        }
     }
+
+    public interface ICombatBehavior
+    {
+        void ExecuteTurn(Entity actor, CombatContext context);
+    }
+
+    public abstract class BaseCombatBehavior : ICombatBehavior
+    {
+        public struct AttackResult
+        {
+            public int FinalDamage;
+            public bool IsCritical;
+            public bool IsHit;
+            public string LogMessage;
+        }
+
+        public virtual void ExecuteTurn(Entity actor, CombatContext context)
+        {
+            var targets = context.EnemiesOf(actor).Where(e => e.HP > 0).ToList();
+            if (targets.Count == 0) return;
+
+            Entity target = SelectedTarget(actor, targets);
+            target = HandleTankInterception(target, context);
+
+            PerformAttack(actor, target, context);
+            actor.HandleResources(context.Dungeon);
+        }
+
+        public AttackResult CalculateAttack(Entity attacker, Entity target, int baseDamage, ElementType element)
+        {
+            var result = new AttackResult();
+
+            int attackRoll = attacker.RollDice();
+            int totalHit = attackRoll + attacker.GetAccuracy();
+
+            int defenseRating = 10 + target.GetEvasion();
+            if (attackRoll <= 5)
+            {
+                result.IsHit = false;
+                result.LogMessage = $"⛓️‍💥 {attacker.Name} errou o ataque! (Roll: {attackRoll})";
+                return result;
+            }
+
+            if (totalHit >= defenseRating)
+            {
+                result.IsHit = true;
+            }
+            else
+            {
+                result.IsHit = false;
+                result.LogMessage = $"[{attacker.Name}] errou! ({totalHit} vs {defenseRating})";
+                return result;
+            }
+
+
+            int critThreshold = attacker.GetCritThreshold();
+            var dice = attacker.RollDice();
+            bool isCrit = dice >= critThreshold;
+            float multiplier = 1f;
+
+            if (isCrit)
+            {
+                multiplier = 1.5f;
+            }
+            else if (dice <= 10)
+            {
+                multiplier = 0.8f;
+            }
+            int damageDealt = 0;
+            switch (target)
+            {
+                case Enemy:
+                    Enemy e = (Enemy)target;
+                    damageDealt = target.CalculateMitigation(baseDamage * multiplier, element, e.Element, e.Armour);
+                    break;
+                case Hero:
+                    Hero h = (Hero)target;
+                    damageDealt = target.CalculateMitigation(baseDamage * multiplier, element, h.Element, h.Armour);
+                    break;
+            }
+            if (isCrit) result.FinalDamage = damageDealt > 1 ? damageDealt : 2;
+            else result.FinalDamage = damageDealt;
+            result.IsCritical = isCrit;
+
+            return result;
+        }
+
+        public AttackResult CalculateHeal(Entity healer, int baseHeal)
+        {
+            var result = new AttackResult();
+
+            bool concentrationCheck = healer.RollDice() > 30;
+
+            int critThreshold = healer.GetCritThreshold();
+            bool isCrit = healer.RollDice() >= critThreshold;
+
+            float multiplier = 1.0f;
+
+            if (isCrit)
+            {
+                multiplier = 2.0f;
+                result.IsCritical = true;
+            }
+            else
+            {
+                multiplier = 0.5f;
+                result.LogMessage = $"💦 {healer.Name} se distraiu e curou pouco...";
+            }
+
+            result.FinalDamage = Math.Max(1, (int)(baseHeal * multiplier));
+            result.IsHit = true;
+
+            return result;
+        }
+
+        public int GetClassPriority(Class c)
+        {
+            return c switch
+            {
+                Class.Tank => 0,
+                Class.Warrior => 1,
+                Class.Ranger => 2,
+                _ => 3,
+            };
+        }
+
+        protected Entity SelectedTarget(Entity actor, List<Entity> targets)
+        {
+            if (targets == null || targets.Count == 0) return null;
+            if (actor.RollDice() > 45)
+            {
+                return targets
+                    .OrderBy(h => GetClassPriority(h.Class))
+                    .ThenBy(e => e.HP)
+                    .ThenBy(e => e.Armour)
+                    .FirstOrDefault();
+            }
+            return targets[Rng.Rand.Next(targets.Count)];
+        }
+
+        protected Entity HandleTankInterception(Entity originalTarget, CombatContext context)
+        {
+            if (originalTarget.Class == Class.Tank) return originalTarget;
+
+            var alliesOfTarget = context.AlliesOf(originalTarget).Where(e => e.HP > 0).ToList();
+
+            var alliesTanks = alliesOfTarget.Where(e => e.Class == Class.Tank).ToList();
+
+            if (alliesTanks.Count > 0 && Rng.Rand.Next(0, 100) > 75)
+            {
+                var interceptor = alliesTanks[Rng.Rand.Next(0, alliesTanks.Count)];
+                bool isExhausted = (interceptor is Hero h && h.Energy <= 0 || interceptor is Enemy e && e.Energy <= 0);
+
+                if (!isExhausted)
+                {
+                    string icon = interceptor is Hero ? "🏰" : "🛑";
+                    context.Dungeon.Logs.Add($"{icon}[{interceptor.Initiative}]{interceptor.Name} interceptou o ataque em {originalTarget.Name}!");
+                    return interceptor;
+                }
+                return originalTarget;
+            }
+            return originalTarget;
+        }
+
+        protected void PerformAttack(Entity attacker, Entity target, CombatContext context)
+        {
+            int dmg = 0;
+
+            if (attacker is Hero h) dmg = h.IsMagical && h.Mana > 0 ? h.MagicPower : h.PhysicalDamage;
+            else if (attacker is Enemy e) dmg = e.IsMagical && e.Mana > 0 ? e.MagicPower : e.PhysicalDamage;
+
+            var attack = CalculateAttack(attacker, target, dmg, attacker.Element.Type);
+
+            if (attack.IsHit)
+            {
+                int damageTaken = target.TakeDamage(attack.FinalDamage);
+                string critText = attack.IsCritical ? "Crit:" : "";
+                string icon = attacker is Hero ? "🏰" : "🛑";
+                string attackIcon = attacker.IsMagical && attacker.Mana > 0 ? "🔥" : "⚔️";
+                context.Dungeon.Logs.Add($"{icon}{critText} {attacker.Name} {attackIcon} {target.Name} | HP: {target.HP}/{target.MaxHP}");
+
+                if (target.Class == Class.Tank)
+                {
+                    var thorn = Math.Max(1, (int)(damageTaken * 0.20));
+                    if (target.RollDice() > 50 && !attacker.IsMagical)
+                    {
+                        attacker.TakeDamage(thorn);
+                        context.Dungeon.Logs.Add($"Espinhos! {target.Name} devolveu -{thorn}HP em {attacker.Name}");
+                    } 
+                }
+                if (attacker.Class == Class.Ranger) attacker.Heal(2);
+            }
+            else
+            {
+                string icon = attacker is Hero ? "🏰" : "🛑";
+                context.Dungeon.Logs.Add(icon + attack.LogMessage);
+            }
+        }
+    }
+
+    public static class CombatStrategyFactory
+    {
+        public class AggressiveBehavior : BaseCombatBehavior
+        {
+            public override void ExecuteTurn(Entity actor, CombatContext context)
+            {
+                base.ExecuteTurn(actor, context);
+            }
+        }
+        public class RangerBehavior : BaseCombatBehavior
+        {
+            public override void ExecuteTurn(Entity actor, CombatContext context)
+            {
+                base.ExecuteTurn(actor, context);
+            }
+        }
+        public class MagicBehavior : BaseCombatBehavior
+        {
+            public override void ExecuteTurn(Entity actor, CombatContext context)
+            {
+                base.ExecuteTurn(actor, context);
+            }
+        }
+        public class SupportBehavior : BaseCombatBehavior
+        {
+            public override void ExecuteTurn(Entity actor, CombatContext context)
+            {
+                var allies = context.AlliesOf(actor).Where(a => a.HP > 0 && a.HP < a.MaxHP).ToList();
+                var lowestAlly = allies.OrderBy(a => a.HP).FirstOrDefault();
+
+                bool shouldHeal = false;
+                if(lowestAlly != null)
+                {
+                    var roll = Rng.Rand.Next(0, 100);
+                    int threshold = (lowestAlly == actor) ? 60 : 30;
+                    shouldHeal = actor.RollDice() > threshold;
+                }
+
+                if (lowestAlly != null && shouldHeal)
+                {
+                    int dmg = 0;
+                    if (actor is Hero h) dmg = h.MagicPower;
+                    else if (actor is Enemy e) dmg = e.MagicPower;
+                    var heal = CalculateHeal(actor, dmg);
+
+                    if (heal.IsHit)
+                    {
+                        int healAmount = heal.FinalDamage;
+                        string critText = heal.IsCritical ? "Crit:" : "";
+                        lowestAlly.Heal(healAmount);
+                        context.Dungeon.Logs.Add($"💚 {actor.Name} curou {lowestAlly.Name}...");
+                    }
+                    else
+                    {
+                        context.Dungeon.Logs.Add(heal.LogMessage);
+                    }
+                }
+                else
+                {
+                    base.ExecuteTurn(actor, context);
+                }
+            }
+        }
+
+        private static readonly Dictionary<Class, ICombatBehavior> _strategies = new()
+        {
+            { Class.Warrior, new AggressiveBehavior() }, // Você cria essa classe herdando de Base
+            { Class.Tank,    new AggressiveBehavior() },
+            { Class.Ranger,  new RangerBehavior() },
+            { Class.Mage,    new MagicBehavior() },      // Lógica de magia
+            { Class.Support, new SupportBehavior() }
+        };
+
+        public static ICombatBehavior GetBehavior(Class c)
+        {
+            return _strategies.ContainsKey(c) ? _strategies[c] : _strategies[Class.Warrior];
+        }
+    }
+
+
 
     public void CombatEncounter(Dungeon dungeon, DungeonRoom room, List<Hero> GuildParty)
     {
-        Dungeon = dungeon;
+        Context = new CombatContext
+        {
+            Dungeon = dungeon,
+            Room = room,
+            Party = GuildParty
+        };
+
         var allCombatants = new List<Entity>();
         allCombatants.AddRange(GuildParty.Where(h => h.HP > 0));
         allCombatants.AddRange(room.Enemies.Where(e => e.HP > 0));
-
-        allCombatants = allCombatants.OrderByDescending(c =>
-            (c is Hero h) ? h.Initiative : ((Enemy)c).Initiative
-        ).ToList();
+        allCombatants = allCombatants.OrderByDescending(c => (c is Hero h) ? h.Initiative : ((Enemy)c).Initiative).ToList();
 
         foreach (Entity combatant in allCombatants)
         {
-            if (combatant is Hero h && h.HP <= 0) continue;
-            if (combatant is Enemy e && e.HP <= 0) continue;
+            if (!combatant.IsAlive()) continue;
 
-            if (combatant is Enemy enemy)
+            if (GuildParty.All(h => !h.IsAlive()))
             {
-                switch (enemy.Class)
-                {
-                    default:
-                        var validTargets = GuildParty.Where(h => h.HP > 0).ToList();
-                        if (validTargets.Count == 0)
-                        {
-                            Dungeon.Logs.Add("💀 Todos os aliados morreram.");
-                            break;
-                        }
-
-                        Hero target = null;
-
-                        float roll = (float)Rng.Rand.NextDouble();
-
-                        if (roll < 0.4f)
-                        {
-                            target = validTargets.OrderBy(h => GetClassPriority(h.Class)).FirstOrDefault();
-                        }
-
-                        if (target == null)
-                        {
-                            target = validTargets[Rng.Rand.Next(0, validTargets.Count)];
-                        }
-
-                        if (target.Class != Class.Tank)
-                        {
-                            var tanks = validTargets.Where(h => h.Class == Class.Tank && h.HP > 0).ToList();
-                            if (tanks.Count > 0 && Rng.Rand.NextDouble() < 0.20)
-                            {
-                                var interceptor = tanks[Rng.Rand.Next(tanks.Count)];
-                                Dungeon.Logs.Add($"🏰{interceptor.Name} interceptou o ataque destinado a {target.Name}!");
-                                target = interceptor;
-                            }
-                        }
-                        var attack = CalculateAttack(enemy, target, enemy.PhysicalDamage, enemy.Element.Type);
-
-                        if (attack.IsHit)
-                        {
-                            int damage = target.TakeDamage(attack.FinalDamage);
-                            string critText = attack.IsCritical ? "Crit:" : "";
-                            Dungeon.Logs.Add($"🛑[{enemy.Initiative}]{enemy.Name} {critText} ⚔️ {target.Name} : -{damage} HP (HP: {target.HP})");
-                            if (target.Class == Class.Tank)
-                            {
-                                var thorn = Math.Max(1, (int)(damage * 0.25));
-                                enemy.TakeDamage(thorn);
-                                Dungeon.Logs.Add($"Espinhos eficientes! {target.Name} devolveu -{thorn}HP em [{enemy.Initiative}]{enemy.Name}");
-                            }
-                            CheckEnemyDeath(enemy);
-
-                        }
-                        else
-                        {
-                            Dungeon.Logs.Add("🛑" + attack.LogMessage);
-                        }
-                        if (target.HP <= 0)
-                        {
-                            Dungeon.Logs.Add($"💀💀 {target.Name} caiu em combate! 💀💀");
-                        }
-                        break;
-                    case Class.Support:
-                        var woundedAlly = room.Enemies.FirstOrDefault(e => e != enemy && e.HP > 0 && e.HP < e.MaxHP);
-
-                        if (woundedAlly != null && enemy.RollDice() > 30)
-                        {
-                            var heal = CalculateHeal(enemy, enemy.MagicPower);
-                            if (heal.IsHit)
-                            {
-                                int healAmount = heal.FinalDamage;
-                                string critText = heal.IsCritical ? "Crit:" : "";
-                                woundedAlly.HP = (woundedAlly.HP >= woundedAlly.MaxHP) ? woundedAlly.MaxHP : woundedAlly.HP + healAmount;
-                                Dungeon.Logs.Add($"🛑[{enemy.Initiative}]{enemy.Name} {critText} 💚 {woundedAlly.Name} : +{healAmount} HP");
-                                continue;
-                            }
-                            else
-                            {
-                                Dungeon.Logs.Add($"🛑[{enemy.Initiative}] " + heal.LogMessage);
-                            }
-                        }
-                        else
-                        {
-                            goto default;
-                        }
-                        break;
-                }
+                dungeon.Logs.Add("💀 Todos os aliados morreram.");
+                break;
+            }
+            if (room.Enemies.All(e => !e.IsAlive()))
+            {
+                dungeon.Logs.Add("✨ Vitória! Sala limpa.");
+                break;
             }
 
-            else if (combatant is Hero hero)
+            var strategy = CombatStrategyFactory.GetBehavior(combatant.Class);
+            strategy.ExecuteTurn(combatant, Context);
+            CheckDeaths(allCombatants, dungeon);
+
+        }
+    }
+    private void CheckDeaths(List<Entity> combatants, Dungeon dungeon)
+    {
+        foreach (var c in combatants)
+        {
+            if (!c.IsAlive() && c is Enemy e && !e.IsLooted)
             {
-                switch (hero.Class)
-                {
-                    default:
-                        var physicalTargets = room.Enemies.Where(e => e.HP > 0).ToList();
-                        if (physicalTargets.Count > 0)
-                        {
-                            Enemy target = physicalTargets.OrderBy(e => e.HP).ThenBy(e => e.Armour).FirstOrDefault();
-                            if (target.Class != Class.Tank)
-                            {
-                                var enemyTanks = room.Enemies.Where(e => e.Class == Class.Tank && e.HP > 0).ToList();
-                                if (enemyTanks.Count > 0 && Rng.Rand.NextDouble() < 0.10)
-                                {
-                                    var interceptor = enemyTanks[Rng.Rand.Next(enemyTanks.Count)];
-                                    Dungeon.Logs.Add($"🛑[{interceptor.Initiative}]{interceptor.Name} entrou na frente do ataque em {target.Name}!");
-                                    target = interceptor;
-                                    target.Energy--;
-                                }
-                            }
-
-                            int energyCost = (hero.Class == Class.Mage || hero.Class == Class.Support) ? 2 : 1;
-                            if (hero.Energy > 0)
-                            {
-                                hero.Energy--;
-                            }
-                            else
-                            {
-                                if (hero.Stress()) Dungeon.Logs.Add($"🏰[{hero.Initiative}]{hero.Name} está estressado!");
-                            }
-
-                            var attack = CalculateAttack(hero, target, hero.PhysicalDamage, hero.Element.Type);
-                            if (attack.IsHit)
-                            {
-                                int damage = target.TakeDamage(attack.FinalDamage);
-                                string critText = attack.IsCritical ? "Crit:" : "";
-                                if (target.Class == Class.Tank) hero.TakeDamage(1);
-                                Dungeon.Logs.Add($"🏰[{hero.Initiative}]{hero.Name} {critText} ⚔️ [{target.Initiative}]{target.Name} : -{damage} HP (HP: {target.HP})");
-                                CheckEnemyDeath(target);
-                            }
-                            else
-                            {
-                                Dungeon.Logs.Add("🏰" + attack.LogMessage);
-                            }
-                        }
-                        break;
-                    case Class.Mage:
-                        var magicTargets = room.Enemies.Where(e => e.HP > 0).ToList();
-                        if (magicTargets.Count > 0)
-                        {
-                            Enemy target = magicTargets.OrderBy(e => e.HP).ThenBy(e => e.Armour).FirstOrDefault();
-
-                            if (target.Class != Class.Tank)
-                            {
-                                var enemyTanks = room.Enemies.Where(e => e.Class == Class.Tank && e.HP > 0).ToList();
-                                if (enemyTanks.Count > 0 && Rng.Rand.NextDouble() < 0.20)
-                                {
-                                    var interceptor = enemyTanks[Rng.Rand.Next(enemyTanks.Count)];
-                                    Dungeon.Logs.Add($"🛑[{interceptor.Initiative}]{interceptor.Name} protegeu {target.Name} do feitiço!");
-                                    target = interceptor;
-                                    target.Energy--;
-                                }
-                            }
-                            if (hero.Mana > 0)
-                            {
-                                var attack = CalculateAttack(hero, target, hero.MagicPower, hero.Element.Type);
-                                if (attack.IsHit)
-                                {
-                                    int damageText = target.TakeDamage(attack.FinalDamage);
-                                    string critText = attack.IsCritical ? "Crit:" : "";
-                                    hero.Mana--;
-                                    Dungeon.Logs.Add($"🏰[{hero.Initiative}]{hero.Name} {critText} 🔥 {target.Name} : -{damageText} HP (HP: {target.HP})");
-                                    CheckEnemyDeath(target);
-                                }
-                                else
-                                {
-                                    Dungeon.Logs.Add("🏰" + attack.LogMessage);
-                                }
-                            }
-                            else
-                            {
-                                goto default;
-                            }
-
-                        }
-                        break;
-                    case Class.Support:
-                        var lowestAlly = GuildParty.Where(a => a != hero && a.HP > 0 && a.HP < a.MaxHP).OrderBy(a => a.HP).FirstOrDefault();
-
-                        if (lowestAlly != null && hero.RollDice() > 30)
-                        {
-                            if (hero.Mana > 0)
-                            {
-                                var heal = CalculateHeal(hero, hero.MagicPower);
-                                if (heal.IsHit)
-                                {
-                                    int healAmount = heal.FinalDamage;
-                                    string critText = heal.IsCritical ? "Crit:" : "";
-                                    int healed = lowestAlly.Heal(healAmount);
-                                    hero.Mana--;
-                                    Dungeon.Logs.Add($"🏰[{hero.Initiative}]{hero.Name} {critText} 💚 {lowestAlly.Name} : +{healed} HP");
-                                    continue;
-                                }
-                                else
-                                {
-                                    Dungeon.Logs.Add($"🏰[{hero.Initiative}] " + heal.LogMessage);
-                                }
-                            }
-                            else
-                            {
-                                goto default;
-                            }
-                        }
-                        else
-                        {
-                            var supportTargets = room.Enemies.Where(e => e.HP > 0).ToList();
-                            if (supportTargets.Count > 0)
-                            {
-                                Enemy target = supportTargets.OrderBy(e => e.HP).ThenBy(e => e.Armour).FirstOrDefault();
-
-                                if (target.Class != Class.Tank)
-                                {
-                                    var enemyTanks = room.Enemies.Where(e => e.Class == Class.Tank && e.HP > 0).ToList();
-                                    if (enemyTanks.Count > 0 && Rng.Rand.NextDouble() < 0.20)
-                                    {
-                                        var interceptor = enemyTanks[Rng.Rand.Next(enemyTanks.Count)];
-                                        Dungeon.Logs.Add($"🛑[{interceptor.Initiative}]{interceptor.Name} protegeu {target.Name} do feitiço!");
-                                        target = interceptor;
-                                        target.Energy--;
-                                    }
-                                }
-                                if (hero.Mana > 0)
-                                {
-                                    var attack = CalculateAttack(hero, target, hero.MagicPower, hero.Element.Type);
-                                    if (attack.IsHit)
-                                    {
-                                        int damageText = target.TakeDamage(attack.FinalDamage);
-                                        string critText = attack.IsCritical ? "Crit:" : "";
-                                        hero.Mana--;
-                                        Dungeon.Logs.Add($"🏰[{hero.Initiative}]{hero.Name} {critText} 🔥 {target.Name} : -{damageText} HP (HP: {target.HP})");
-                                        CheckEnemyDeath(target);
-                                    }
-                                    else
-                                    {
-                                        Dungeon.Logs.Add("🏰" + attack.LogMessage);
-                                    }
-                                }
-                                else
-                                {
-                                    goto default;
-                                }
-
-                            }
-                        }
-                        break;
-                }
+                dungeon.Logs.Add($"☠️ {e.Name} foi derrotado!");
+                int XPsum = e.Level * 20;
+                dungeon.XpReward += XPsum;
+                e.IsLooted = true;
+            }
+            else if (!c.IsAlive() && !c.DeathLogged && c is Hero h)
+            {
+                dungeon.Logs.Add($"💀💀 {h.Name} caiu em combate!");
+                h.DeathLogged = true;
             }
         }
-    }
-
-    public AttackResult CalculateAttack(Entity attacker, Entity target, int baseDamage, ElementType element)
-    {
-        var result = new AttackResult();
-
-        int attackRoll = attacker.RollDice();
-        int totalHit = attackRoll + attacker.GetAccuracy();
-
-        int defenseRating = 10 + target.GetEvasion();
-        if (attackRoll <= 5)
-        {
-            result.IsHit = false;
-            result.LogMessage = $"⛓️‍💥 {attacker.Name} errou o ataque! (Roll: {attackRoll})";
-            return result;
-        }
-
-        if (totalHit >= defenseRating)
-        {
-            result.IsHit = true;
-        }
-        else
-        {
-            result.IsHit = false;
-            result.LogMessage = $"[{attacker.Name}] errou! ({totalHit} vs {defenseRating})";
-            return result;
-        }
-
-
-        int critThreshold = attacker.GetCritThreshold();
-        var dice = attacker.RollDice();
-        bool isCrit = dice >= critThreshold;
-        float multiplier = 1f;
-
-        if (isCrit)
-        {
-            multiplier = 1.5f;
-        }
-        else if (dice <= 10)
-        {
-            multiplier = 0.8f;
-        }
-        int damageDealt = 0;
-        switch (target)
-        {
-            case Enemy:
-                Enemy e = (Enemy)target;
-                damageDealt = target.CalculateMitigation(baseDamage * multiplier, element, e.Element, e.Armour);
-                break;
-            case Hero:
-                Hero h = (Hero)target;
-                damageDealt = target.CalculateMitigation(baseDamage * multiplier, element, h.Element, h.Armour);
-                break;
-        }
-        result.FinalDamage = damageDealt;
-        result.IsCritical = isCrit;
-
-        return result;
-    }
-
-    public AttackResult CalculateHeal(Entity healer, int baseHeal)
-    {
-        var result = new AttackResult();
-        result.IsHit = healer.RollDice() > 30;
-        result.LogMessage = result.IsHit ? "" : $"⛓️‍💥 {healer.Name} não conseguiu se concentrar";
-
-        int critThreshold = healer.GetCritThreshold();
-        bool isCrit = healer.RollDice() >= critThreshold;
-
-        float multiplier = isCrit ? 2.0f : 1.0f;
-
-        result.FinalDamage = (int)(baseHeal * multiplier);
-        result.IsCritical = isCrit;
-
-        return result;
-    }
-
-    private void CheckEnemyDeath(Enemy target)
-    {
-        if (target.HP <= 0)
-        {
-            int XPsum = target.Level * 50;
-            Dungeon.XpReward += XPsum;
-            Dungeon.Logs.Add($"☠️ [{target.Initiative}]{target.Name} foi derrotado! (+{XPsum} XP acumulado)");
-        }
-    }
-
-    public int GetClassPriority(Class c)
-    {
-        return c switch
-        {
-            Class.Tank => 0,
-            Class.Warrior => 1,
-            Class.Ranger => 2,
-            _ => 3,
-        };
     }
 }

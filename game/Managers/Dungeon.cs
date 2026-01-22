@@ -21,7 +21,7 @@ public class Dungeon
     public List<Entity> GuildMiners = new(); // For future use to collect resources
     public Biome Biome = new();
     public List<DungeonRoom> Rooms = new();
-    DungeonRoom CurrentRoom;
+    public DungeonRoom CurrentRoom { get; private set; }
 
     int TimeToComplete = 0;
 
@@ -74,7 +74,7 @@ public class Dungeon
             var randomCreature = Biome.GetRandomNativeCreature();
             var randomClass = Rng.RandEnum<Class>();
 
-            list.Add(new Enemy(Level));
+            list.Add(new Enemy(Level, new(sortedElement)));
         }
         return list;
     }
@@ -82,7 +82,7 @@ public class Dungeon
     {
         GuildParty = Mission.Party;
 
-        int maxEnemies = Math.Min(6, Level + GuildParty.Count - 1);
+        int maxEnemies = GuildParty.Count + (Level - GuildParty[0].Level); // TODO: implement a new party system where player can create how much predefinided party he want, and we can calculate the medium level, elements abundance, and particular logs (hero has been added, hero has been removed, party started a dungeon, dungeon.logs, etc...) etc... 
         int enemiesRoom = Rng.Rand.Next(1, maxEnemies + 1);
         int totalEnemies = 0;
         foreach (DungeonRoom room in Rooms)
@@ -147,12 +147,16 @@ public class Dungeon
                         Logs.Add($"✨ Vitória! Party recebeu {totalXp} XP total");
                     }
                     XpReward = 0;
-                    foreach (var hero in GuildParty)
+                    foreach(Hero hero in GuildParty)
                     {
-                        hero.Heal(hero.Constitution / 4);
-                        // hero.Energy = Math.Min(hero.MaxEnergy, hero.Energy + (hero.Constitution / 4));
-                        // hero.Mana = Math.Min(hero.MaxMana, hero.Mana + (hero.Wisdom / 4));
-                        // hero.Heal(hero.Constitution / 4);
+                        if (!hero.IsAlive()) continue;
+
+                        bool lowHp = hero.HP < (hero.MaxHP * 0.5f);
+                        bool lowResources = (hero.IsMagical && hero.Mana < hero.MaxMana * 0.3) || hero.Energy < hero.MaxEnergy * 0.3f;
+                        if (hero.RestCount > 0 && (lowHp || lowResources))
+                        {
+                            hero.CombatRest(this);
+                        }
                     }
                 }
             }

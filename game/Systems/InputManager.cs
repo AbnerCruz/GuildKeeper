@@ -19,7 +19,10 @@ public class InputManager
         {
             WorldInstance.Guild.RefreshApplicants(true, 5, Rng.Rand.Next(1, WorldInstance.Guild.Level + 2));
             WorldInstance.Guild.RefreshAvailableDungeons(true, 5, Rng.Rand.Next(1, WorldInstance.Guild.Level + 2));
-            WorldInstance.UIController.Build();
+        }
+        if (Input.Keyboard.Pressed(Keys.S))
+        {
+            WorldInstance.WorldTimeManager.SkipMonth();
         }
     }
 

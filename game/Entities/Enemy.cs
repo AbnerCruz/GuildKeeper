@@ -6,7 +6,6 @@ using System.Runtime.InteropServices;
 
 public class Enemy : Entity
 {
-    public int Level { get; set; } = 1;
     public int LevelUpPoints;
     public int XP { get; set; }
     public int NextLevelXP => Level * 500;
@@ -25,12 +24,9 @@ public class Enemy : Entity
     public int Charisma;
 
     public int BaseHP;
-    public int MaxHP => BaseHP + (int)(Constitution * 2f) + ((Level - 1) * 15);
-    public int HP;
 
     public int BaseMana;
     public int MaxMana => Math.Max(1, (BaseMana + Wisdom) * Level);
-    public int Mana;
 
     public int BaseEnergy;
     public int MaxEnergy => Math.Max(1, (BaseEnergy + (int)(Constitution * 1) + (int)(Charisma * 0.5)) + Level);
@@ -43,7 +39,6 @@ public class Enemy : Entity
     public int DamageDebuff;
     public int MagicDamageDebuff;
 
-    public int Initiative => Dexterity;
     public int PhysicalDamage
     {
         get
@@ -53,7 +48,7 @@ public class Enemy : Entity
             else if (Class == Class.Tank) baseDmg = (int)(Strength * 0.5f + Constitution * 0.5f);
 
             else
-                baseDmg = (int)(Strength * 1f + Dexterity * 0.5f);
+                baseDmg = (int)(Strength * 1f + Dexterity * 0.3f);
 
             int totalDmg = baseDmg + EquipmentPhysicalDamage;
             return Math.Max(1, totalDmg);
@@ -68,7 +63,7 @@ public class Enemy : Entity
                 baseDmg = (int)(Charisma * 1f + Wisdom * 0.2f);
             else if (Class == Class.Mage)
             {
-                baseDmg = (int)(Wisdom * 1f + Charisma * 0.5f);
+                baseDmg = (int)(Wisdom * 1f + Charisma * 0.4f);
             }
             else
                 baseDmg = 0;
@@ -77,11 +72,9 @@ public class Enemy : Entity
             return Math.Max(1, totalDmg);
         }
     }
-    public int Armour => Math.Max(1, (int)(Constitution * 0.5f) + (int)(Dexterity * 0.2f) + EquipmentArmour);
-
-    public ElementInfo Element;
 
     public List<Equipment> Equipment;
+    public bool IsLooted = false;
 
     public Enemy(int baseHp, int baseMana, int baseEnergy, int strength, int dexterity, int constitution, int wisdom, int charisma)
     {
@@ -107,9 +100,10 @@ public class Enemy : Entity
 
     public Enemy() : this(10, 10, 10, 1, 1, 1, 1, 1) { }
 
-    public Enemy(int level) : this(10, 10, 10, 1, 1, 1, 1, 1)
+    public Enemy(int level, ElementInfo element) : this(10, 10, 10, 1, 1, 1, 1, 1)
     {
-        RandomInitialAttributes(level);
+        RandomInitialAttributes(level, null, true);
+        Element = element;
     }
 
     public Enemy(Class enemyClass, int level) : this(10, 10, 10, 1, 1, 1, 1, 1)
@@ -124,13 +118,15 @@ public class Enemy : Entity
 
     public void RestoreVitals()
     {
-        Name = $"{Race} {Element.Type} {Class} Lvl: {Level}";
+        MaxHP = BaseHP + (int)(Constitution * 2f) + ((Level - 1) * 15);
         HP = MaxHP;
+        Initiative = Dexterity;
+        Armour = Math.Max(1, (int)(Constitution * 0.5f) + (int)(Dexterity * 0.2f) + EquipmentArmour);
         Mana = MaxMana;
         Energy = MaxEnergy;
     }
 
-    public void RandomInitialAttributes(int level, Class? forcedClass = null)
+    public void RandomInitialAttributes(int level, Class? forcedClass = null, bool preserveELement = false)
     {
         Level = 0;
 
@@ -147,7 +143,7 @@ public class Enemy : Entity
         BaseConstitution = Rng.Rand.Next(1, 8);
         BaseWisdom = Rng.Rand.Next(1, 8);
         BaseCharisma = Rng.Rand.Next(1, 8);
-        ApplyClassArchetype();
+        ApplyClassArchetype(!preserveELement);
 
         Strength = BaseStrength;
         Dexterity = BaseDexterity;
@@ -155,7 +151,7 @@ public class Enemy : Entity
         Wisdom = BaseWisdom;
         Charisma = BaseCharisma;
 
-        BaseHP = 15 + BaseConstitution;
+        BaseHP = 40 + BaseConstitution;
         BaseMana = 10 + BaseWisdom;
         BaseEnergy = 10 + BaseDexterity;
 
@@ -167,7 +163,7 @@ public class Enemy : Entity
         RestoreVitals();
     }
 
-    private void ApplyClassArchetype()
+    private void ApplyClassArchetype(bool generateElement = true)
     {
         int hugeBonus = 4;
         int moderateBonus = 2;
@@ -187,7 +183,7 @@ public class Enemy : Entity
                 BaseCharisma += moderateBonus;
                 BaseDexterity = Math.Max(1, BaseDexterity - moderatePenality);
                 BaseStrength = Math.Max(1, BaseStrength - moderatePenality);
-                SetRandomElement(ElementType.Air, ElementType.Darkness, ElementType.Earth, ElementType.Fire, ElementType.Ice, ElementType.Light, ElementType.Lightning, ElementType.Water);
+                if(generateElement) SetRandomElement(ElementType.Air, ElementType.Darkness, ElementType.Earth, ElementType.Fire, ElementType.Ice, ElementType.Light, ElementType.Lightning, ElementType.Water);
                 break;
 
             case Class.Tank:
@@ -195,14 +191,14 @@ public class Enemy : Entity
                 BaseCharisma += moderateBonus;
                 BaseDexterity = Math.Max(1, BaseDexterity - moderatePenality);
                 BaseWisdom = Math.Max(1, BaseWisdom - hugePenality);
-                SetRandomElement(ElementType.Earth, ElementType.Light, ElementType.Ice);
+                if (generateElement) SetRandomElement(ElementType.Earth, ElementType.Light, ElementType.Ice);
                 break;
 
             case Class.Ranger:
                 BaseDexterity += hugeBonus;
                 BaseStrength += moderateBonus;
                 BaseConstitution = Math.Max(1, BaseConstitution - moderatePenality);
-                SetRandomElement(ElementType.Fire, ElementType.Ice, ElementType.Poison);
+                if (generateElement) SetRandomElement(ElementType.Fire, ElementType.Ice, ElementType.Poison);
                 break;
 
             case Class.Support:
@@ -210,7 +206,7 @@ public class Enemy : Entity
                 BaseWisdom += moderateBonus;
                 BaseStrength = Math.Max(1, BaseStrength - hugePenality);
                 BaseConstitution = Math.Max(1, BaseConstitution - moderatePenality);
-                SetRandomElement(ElementType.Water, ElementType.Light, ElementType.Air);
+                if (generateElement) SetRandomElement(ElementType.Water, ElementType.Light, ElementType.Air);
                 break;
         }
     }
@@ -244,28 +240,6 @@ public class Enemy : Entity
         }
     }
 
-    public int TakeDamage(int damage)
-    {
-        HP -= damage;
-        if (HP < 0) HP = 0;
-        return damage;
-    }
-
-    public int Heal(int heal)
-    {
-        HP += heal;
-        if (HP >= MaxHP)
-        {
-            HP = MaxHP;
-        }
-        return heal;
-    }
-
-    public bool IsAlive()
-    {
-        return HP > 0;
-    }
-
     public void GainXP(int amount)
     {
         XP += amount;
@@ -281,7 +255,7 @@ public class Enemy : Entity
         Level++;
         LevelUpPoints += 3;
         AutoDistributeAttributePoints();
-        RestoreVitals();
+        Name = $"{Race} {Element.Type} {Class} Lvl: {Level}";
     }
 
     public void AutoDistributeAttributePoints()
@@ -334,14 +308,44 @@ public class Enemy : Entity
 
     public override int GetAccuracy()
     {
+        int acc = 0;
         if (Class == Class.Mage || Class == Class.Support)
-            return Wisdom + (Level * 2);
+            acc = Wisdom + (Level * 2);
+        else
+            acc = Dexterity + (Level * 2);
 
-        return Dexterity + (Level * 2);
+        if (Energy <= 0) acc -= 5;
+
+        return acc;
     }
 
     public override int GetEvasion()
     {
-        return (Dexterity / 2) + Level;
+        int eva = (Dexterity / 2) + Level;
+
+        if (Energy <= 0) eva -= 5;
+
+        return eva;
     }
+
+    public override void HandleResources(Dungeon dungeon)
+    {
+        Energy -= (IsMagical) ? 0 : 1;
+        Mana -= (IsMagical) ? 2 : 0;
+
+        if (Energy <= 0)
+        {
+            Energy = 0;
+        }
+        else if (Mana <= 0)
+        {
+            Mana = 0;
+            Energy -= 2;
+        }
+        if (Energy <= MaxEnergy * 0.3f && Energy > 0)
+            dungeon.Logs.Add($"💦 {Name} está ficando ofegante...");
+    }
+
+    
+
 }

@@ -27,8 +27,8 @@ public class Guild
     public Guild(World world, string name)
     {
         World = world;
-        Gold = 500;
         Name = name;
+        Gold = 0;
     }
 
     public bool Hire(Hero hero)
@@ -38,6 +38,7 @@ public class Guild
             hero.Guild = this;
             World.Instantiate(hero);
             Heroes.Add(hero);
+            World.UIController.RefreshInfo();
             return true;
         }
         return false;
@@ -49,6 +50,7 @@ public class Guild
         {
             World.Destroy(hero);
             Heroes.Remove(hero);
+            World.UIController.RefreshInfo();
             return true;
         }
         return false;
@@ -77,7 +79,7 @@ public class Guild
             Applicants.Add(newHero);
         }
 
-        //PrintApplicantsDebug();
+        World.UIController.RefreshInfo();
     }
 
     public bool BuyDungeon(Dungeon dungeon)
@@ -86,8 +88,10 @@ public class Guild
         {
             OwnedDungeons.Add(dungeon);
             AvailableDungeons.Remove(dungeon);
+            World.UIController.RefreshInfo();
             return true;
         }
+        World.UIController.RefreshInfo();
         return false;
     }
 
@@ -96,8 +100,11 @@ public class Guild
         if (OwnedDungeons.Contains(dungeon))
         {
             OwnedDungeons.Remove(dungeon);
+            World.UIController.RefreshInfo();
+            return true;
         }
-        return true;
+        World.UIController.RefreshInfo();
+        return false;
     }
     
     public void RefreshAvailableDungeons(bool configurable, int quantity = 5, int level = 1)
@@ -110,6 +117,7 @@ public class Guild
                 d = new Dungeon(World, Rng.Rand.Next(1, level + 1));
                 AvailableDungeons.Add(d);
             }
+            World.UIController.RefreshInfo();
             return;
         }
         for (int i = 0; i < quantity; i++)
@@ -117,6 +125,7 @@ public class Guild
             d = new Dungeon(World);
             AvailableDungeons.Add(d);
         }
+        World.UIController.RefreshInfo();
     }
 
     public void GainXP(int amount)
@@ -136,40 +145,65 @@ public class Guild
 
     public void PayDay()
     {
-        var allHeroes = new List<Hero>();
-        allHeroes.AddRange(Heroes);
-        foreach(MissionManager mission in Missions)
+        bool rosterChanged = false; // Flag para saber se precisamos redesenhar a UI
+
+        // Usamos HashSet para evitar pagar o mesmo herói duas vezes se ele estiver bugado em 2 listas
+        var allHeroes = new HashSet<Hero>();
+        allHeroes.UnionWith(Heroes);
+
+        foreach (MissionManager mission in Missions)
         {
-            allHeroes.AddRange(mission.Party);
+            allHeroes.UnionWith(mission.Party);
         }
-        for(int i = allHeroes.Count - 1; i >=0; i--)
+
+        var heroesList = allHeroes.ToList();
+
+        if (heroesList.Count > 0)
         {
-            var hero = allHeroes[i];
-            if (Gold >= hero.Wage)
+            for (int i = heroesList.Count - 1; i >= 0; i--)
             {
-                hero.Pay();
-            }
-            else
-            {
-                hero.Satisfaction = Math.Max(0, hero.Satisfaction - 20);
-            }
-            if (hero.Satisfaction <= 0)
-            {
-                if (Heroes.Contains(hero))
+                var hero = heroesList[i];
+
+                if (Gold >= hero.Wage)
                 {
-                    Fire(hero);
+                    Gold -= hero.Wage;
+                    hero.Pay();
+                    Console.WriteLine($"[SISTEMA] Pagamento realizado para {hero.Name}");
                 }
                 else
                 {
-                    foreach(MissionManager mission in Missions)
+                    hero.UnPayed();
+                    rosterChanged = true;
+                    Console.WriteLine($"[SISTEMA] Falha no pagamento de {hero.Name}. Satisfação: {hero.Satisfaction}");
+                }
+
+                if (hero.Satisfaction <= 0)
+                {
+                    Console.WriteLine($"{hero.Name} cansou de ser desrespeitado e foi embora.");
+                    rosterChanged = true;
+
+                    if (Heroes.Contains(hero))
                     {
-                        if (mission.Party.Contains(hero))
+                        World.Destroy(hero);
+                        Heroes.Remove(hero);
+                    }
+                    else
+                    {
+                        foreach (MissionManager mission in Missions)
                         {
-                            mission.Party.Remove(hero);
+                            if (mission.Party.Contains(hero))
+                            {
+                                mission.Party.Remove(hero);
+                            }
                         }
                     }
                 }
             }
+        }
+
+        if (rosterChanged)
+        {
+            World.UIController.RefreshInfo();
         }
     }
 }

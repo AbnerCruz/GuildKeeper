@@ -8,7 +8,6 @@ public class Hero : Entity
 {
     public Guild Guild;
 
-    public int Level { get; set; } = 1;
     public int LevelUpPoints;
     public int XP { get; set; }
     public int NextLevelXP => Level * 500;
@@ -27,18 +26,17 @@ public class Hero : Entity
     public int Charisma;
     
     public int BaseHP;
-    public int MaxHP => BaseHP + (int)(Constitution * 1.5f) + ((Level - 1) * 10);
-    public int HP;
 
     public int BaseMana;
-    public int MaxMana => Math.Max(1, 10 + (BaseMana + Wisdom + (int)(Constitution * 0.5)) + Level);
-    public int Mana;
+    public int MaxMana => Math.Max(1, (BaseMana + Wisdom + (int)(Constitution * 0.2)) + Level);
 
     public int BaseEnergy;
     public int MaxEnergy => Math.Max(1, (BaseEnergy + Constitution + (int)(Charisma * 0.5)) + Level);
     public int Energy;
 
-    public int BaseSatisfaction;
+    public int RestCount = 2;
+
+    public int BaseSatisfaction = 10;
     public int MaxSatisfaction => BaseSatisfaction + (Charisma * 2);
     public int Satisfaction;
 
@@ -71,17 +69,16 @@ public class Hero : Entity
     public int StressDamageDebuff;
     public int MagicDamageDebuff;
 
-    public int Initiative => Dexterity;
     public int PhysicalDamage
     {
         get
         {
             int baseDmg = 0;
             if (Class == Class.Ranger) baseDmg = (int)(Dexterity * 1.3f + Strength * 0.5f);
-            else if(Class == Class.Tank) baseDmg = (int)(Strength * 0.8f + Constitution * 0.5f);
+            else if(Class == Class.Tank) baseDmg = (int)(Strength * 0.8f + Constitution * 0.8f);
 
             else
-                baseDmg = (int)(Strength * 1.3f + Dexterity * 0.3f);
+                baseDmg = (int)(Strength * 1.2f + Dexterity * 0.3f);
 
             int totalDmg = baseDmg + EquipmentPhysicalDamage;
             if (Stressed) totalDmg = (int)(totalDmg * 0.5f);
@@ -94,7 +91,7 @@ public class Hero : Entity
         {
             int baseDmg = 0;
             if (Class == Class.Support)
-                baseDmg = (int)(Charisma * 1.2f + Wisdom * 0.1f);
+                baseDmg = (int)(Charisma * 1.2f + Wisdom * 0.2f);
             else if(Class == Class.Mage)
             {
                 baseDmg = (int)(Wisdom * 1.4f + Charisma * 0.4f);
@@ -104,16 +101,13 @@ public class Hero : Entity
 
             int totalDmg = baseDmg + EquipmentMagicPower;
 
-            if (Stressed) totalDmg = (int)(totalDmg * 0.5f);
+            if (Stressed) totalDmg = (int)(totalDmg * 0.6f);
 
             return Math.Max(1, totalDmg);
         }
     }
-    public int Armour => Math.Max(1, (int)(Constitution * 0.7f) + (int)(Dexterity * 0.2f) + EquipmentArmour);
 
     public int Speed => Math.Min(15, 5 + (Dexterity / 4));
-
-    public ElementInfo Element;
 
     public List<Equipment> Equipment;
 
@@ -175,8 +169,10 @@ public class Hero : Entity
 
     public void RestoreVitals()
     {
-        Name = $"{Race} {Element.Type} {Class} Lvl: {Level}";
+        MaxHP = BaseHP + (int)(Constitution * 3f) + ((Level - 1) * 20);
         HP = MaxHP;
+        Initiative = Dexterity;
+        Armour = Math.Max(1, (int)(Constitution * 0.7f) + (int)(Dexterity * 0.2f) + EquipmentArmour);
         Mana = MaxMana;
         Energy = MaxEnergy;
         CurrentStress = 0;
@@ -208,9 +204,10 @@ public class Hero : Entity
         Wisdom = BaseWisdom;
         Charisma = BaseCharisma;
 
-        BaseHP = 15 + BaseConstitution;
+        BaseHP = 40 + BaseConstitution;
         BaseMana = 10 + BaseWisdom;
         BaseEnergy = 10 + BaseDexterity;
+        Satisfaction = MaxSatisfaction;
 
         for(int i = 0; i < level; i++)
         {
@@ -270,9 +267,9 @@ public class Hero : Entity
 
     private void SetRandomElement(params ElementType[] allowedTypes)
     {
-        var rng = Rng.Rand.NextDouble();
-        if (rng < 0.1) Element = new(Rng.RandEnum<ElementType>());
-        else if(rng < 0.4) Element = new(ElementType.None);
+        var rng = Rng.Rand.Next(0, 100) / 100f;
+        if (rng < 0.05f) Element = new(Rng.RandEnum<ElementType>());
+        else if(rng < 0.4f) Element = new(ElementType.None);
         else
         {
             int index = Rng.Rand.Next(0, allowedTypes.Length);
@@ -325,23 +322,6 @@ public class Hero : Entity
             }
         }
     }
-
-    public int TakeDamage(int damage)
-    {
-        HP -= damage;
-        if (HP < 0) HP = 0;
-        return damage;
-    }
-
-    public int Heal(int heal)
-    {
-        HP += heal;
-        if (HP >= MaxHP)
-        {
-            HP = MaxHP;
-        }
-        return heal;
-    }
     
     public bool Stress()
     {
@@ -356,11 +336,6 @@ public class Hero : Entity
             Stressed = false;
         }
         return Stressed;
-    }
-
-    public bool IsAlive()
-    {
-        return HP > 0;
     }
 
     public void GainXP(int amount)
@@ -378,7 +353,7 @@ public class Hero : Entity
         Level++;
         LevelUpPoints += 3;
         AutoDistributeAttributePoints();
-        RestoreVitals();
+        Name = $"{Race} {Element.Type} {Class} Lvl: {Level}";
         Guild?.World?.BuildUI();
     }
 
@@ -432,20 +407,82 @@ public class Hero : Entity
 
     public void Pay()
     {
-        Guild.Gold -= Wage;
         Satisfaction = Math.Min(MaxSatisfaction, Satisfaction + 10);
+    }
+    public void UnPayed()
+    {
+        Satisfaction = Math.Max(0, Satisfaction - 5);
     }
 
     public override int GetAccuracy()
     {
+        int acc = 0;
         if (Class == Class.Mage || Class == Class.Support)
-            return Wisdom + (Level * 2);
+            acc = Wisdom + (Level * 2);
+        else
+            acc = Dexterity + (Level * 2);
 
-        return Dexterity + (Level * 2);
+        if (Energy <= 0) acc -= 5;
+
+        return acc;
     }
 
     public override int GetEvasion()
     {
-        return (Dexterity / 2) + Level;
+        int eva = (Dexterity / 2) + Level;
+
+        if (Energy <= 0) eva -= 5;
+
+        return eva;
+    }
+
+    public override void HandleResources(Dungeon dungeon)
+    {
+        Energy -= (IsMagical) ? 2 : 1;
+        Mana -= (IsMagical) ? 2 : 0;
+
+        if (Energy <= 0)
+        {
+            Energy = 0;
+            Stress();
+        }
+        if (Mana <= 0)
+        {
+            Mana = 0;
+            if(IsMagical) Energy -= 2;
+        }
+        bool lowEnergy = !IsMagical && Energy <= MaxEnergy * 0.3f && Energy > 0;
+        bool lowMana = IsMagical && Mana <= MaxMana * 0.3f && Mana > 0;
+
+        if (lowEnergy || lowMana)
+        {
+            dungeon.Logs.Add($"💦 {Name} está ficando ofegante...");
+        }
+    }
+
+    public void Rest()
+    {
+        Heal(MaxHP);
+        Energy = MaxEnergy;
+        Mana = MaxMana;
+        RestCount = 2;
+    }
+
+    public void CombatRest(Dungeon dungeon)
+    {
+        int healAmount = (int)(MaxHP * 0.3f) + Constitution;
+        Heal(healAmount);
+
+        int energyRecover = (int)(MaxEnergy * 0.2f);
+        Energy = Math.Min(MaxEnergy, Energy + energyRecover);
+
+        int manaRecover = 0;
+        if (IsMagical)
+        {
+            manaRecover = (int)(MaxMana * 0.2f);
+            Mana = Math.Min(MaxMana, Mana + manaRecover);
+        }
+        RestCount--;
+        dungeon?.Logs.Add($"⛺ {Name} descansou e recuperou (+{healAmount}HP, +{energyRecover}EN, +{manaRecover}MP)");
     }
 }

@@ -11,6 +11,7 @@ public class UIController
     public static World WorldInstance;
     private Desktop _desktop;
 
+    private Label _dayLabel;
     private Label _goldLabel;
     private Label _debtLabel;
     private VerticalStackPanel _rosterHeroPanel;
@@ -84,6 +85,7 @@ public class UIController
     {
         var headerContainer = new HorizontalStackPanel { Spacing = 20 };
         var title = new Label { Text = $"Guild: {WorldInstance.Guild.Name}", Scale = new Vector2(1) };
+        _dayLabel = new Label { Text = $"{WorldInstance.WorldTimeManager.CurrentTime}" };
         _goldLabel = new Label { Text = $"Gold: {WorldInstance.Guild.Gold}", TextColor = Color.Gold, Scale = new Vector2(1) };
         _debtLabel = new Label { Text = $"Debt: {WorldInstance.Guild.Debt}", TextColor = Color.Red, Scale = new Vector2(1) };
         var borrowButton = new Button
@@ -92,7 +94,7 @@ public class UIController
         };
         borrowButton.Click += (s, a) =>
         {
-            if(WorldInstance.Guild.Debt <= 2000)
+            if(WorldInstance.Guild.Debt <= 1000)
             {
                 WorldInstance.Guild.Gold += 500;
                 WorldInstance.Guild.Debt += 500;
@@ -123,6 +125,7 @@ public class UIController
             RefreshInfo();
         };
         headerContainer.Widgets.Add(title);
+        headerContainer.Widgets.Add(_dayLabel);
         headerContainer.Widgets.Add(_goldLabel);
         headerContainer.Widgets.Add(_debtLabel);
         headerContainer.Widgets.Add(borrowButton);
@@ -231,11 +234,17 @@ public class UIController
         return Container;
     }
 
-    public void RefreshInfo()
+    public void UpdateRealtimeValues()
     {
+        if (_dayLabel == null || WorldInstance == null) return;
+
+        _dayLabel.Text = $"Day: {WorldInstance.WorldTimeManager.CurrentTime.ToString("dd MMM yyyy")}";
         _goldLabel.Text = $"Gold: {WorldInstance.Guild.Gold}";
         _debtLabel.Text = $"Debt: {WorldInstance.Guild.Debt}";
+    }
 
+    public void RefreshInfo()
+    {
         _rosterHeroPanel.Widgets.Clear();
         _applicantsPanel.Widgets.Clear();
         _rosterDungeonPanel.Widgets.Clear();
@@ -373,7 +382,7 @@ public class UIController
 
         var infoStack = new VerticalStackPanel();
 
-        var nameLabel = new Label { Text = $"{hero.Name}" };
+        var nameLabel = new Label { Text = $"{hero.Name} | Satisfaction: {hero.Satisfaction}" };
         if (hero.Stressed) nameLabel.TextColor = Color.OrangeRed;
 
         infoStack.Widgets.Add(nameLabel);
@@ -515,11 +524,7 @@ public class UIController
 
                 restButton.Click += (s, a) =>
                 {
-                    var energy = hero.Energy;
-                    var mana = hero.Mana;
-                    hero.RestoreVitals();
-                    hero.Energy = energy;
-                    hero.Mana = mana; 
+                    hero.CombatRest(null);
                     RefreshInfo();
                 };
 
@@ -555,7 +560,7 @@ public class UIController
         {
             var resourcesList = dungeon.DungeonResources.Resources.Select(r => $"{r.Type}: {r.Quantity}");
             int totalValue = dungeon.DungeonResources.Resources.Sum(r => r.Price * r.Quantity);
-
+            dungeonInfo.Widgets.Add(new Label {Text = $"Rooms: {dungeon.Rooms.Count}"});
             dungeonInfo.Widgets.Add(new Label { Text = string.Join(" | ", resourcesList), Wrap = true });
             dungeonInfo.Widgets.Add(new Label { Text = $"Est. Value: {totalValue}g", TextColor = Color.Green });
 
