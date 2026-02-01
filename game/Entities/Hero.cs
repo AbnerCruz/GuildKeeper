@@ -61,6 +61,7 @@ public class Hero : Entity
             return baseWage + strValue + dexValue + conValue + wisValue + chaValue + levelTax;
         }
     }
+    public int Debt;
 
     public int EquipmentPhysicalDamage;
     public int EquipmentMagicPower;
@@ -106,8 +107,8 @@ public class Hero : Entity
             return Math.Max(1, totalDmg);
         }
     }
-
-    public int Speed => Math.Min(15, 5 + (Dexterity / 4));
+    private int speedScale = 2;
+    public int Speed => Math.Min(15 * speedScale, (5 + (Dexterity / 4)) * speedScale);
 
     public List<Equipment> Equipment;
 
@@ -151,15 +152,22 @@ public class Hero : Entity
         Transform = transform;
     }
 
-    public Hero(Guild guild, Class heroClass, int level) : this(guild, 10, 10, 10, 1, 1, 1, 1, 1)
+    public Hero(Guild guild, Class? heroClass, int level) : this(guild, 10, 10, 10, 1, 1, 1, 1, 1)
     {
-        RandomInitialAttributes(level, heroClass);
+        if(heroClass != null)
+        {
+            RandomInitialAttributes(level, heroClass);
+        }
     }
 
     public override void Update()
     {
         base.Update();
         AI();
+        if(Satisfaction <= 0 || Debt >= Wage * 3)
+        {
+            Guild.Resignation(this);
+        }
     }
 
     public override void Draw()
@@ -407,11 +415,13 @@ public class Hero : Entity
 
     public void Pay()
     {
+        Debt = Math.Min(0, Debt - Wage);
         Satisfaction = Math.Min(MaxSatisfaction, Satisfaction + 10);
     }
     public void UnPayed()
     {
         Satisfaction = Math.Max(0, Satisfaction - 5);
+        Debt += Wage;
     }
 
     public override int GetAccuracy()
@@ -462,10 +472,10 @@ public class Hero : Entity
 
     public void Rest()
     {
-        Heal(MaxHP);
-        Energy = MaxEnergy;
-        Mana = MaxMana;
-        RestCount = 2;
+        Heal(1);
+        Energy = Math.Min(MaxEnergy, Energy++);
+        Mana = Math.Min(MaxMana, Mana++);
+        RestCount = Math.Min(2, RestCount++);
     }
 
     public void CombatRest(Dungeon dungeon)

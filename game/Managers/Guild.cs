@@ -31,6 +31,17 @@ public class Guild
         Gold = 0;
     }
 
+    public void Update()
+    {
+        if (Missions.Count > 0)
+        {
+            foreach (var mission in Missions)
+            {
+                mission.Update();
+            }
+        }
+    }
+
     public bool Hire(Hero hero)
     {
         if (!Heroes.Contains(hero))
@@ -56,13 +67,13 @@ public class Guild
         return false;
     }
 
-    public void RefreshApplicants(bool configurable = false, int amount = 1, int level = 1)
+    public void RefreshApplicants(Class? applicantsClass, bool configurable = false, int amount = 1, int level = 1)
     {
         Applicants.Clear();
         int quantity = 0;
         if (!configurable)
         {
-            quantity = 2 + (Level / 2);
+            quantity = Rng.Rand.Next(1, 3);
         }
         else
         {
@@ -71,9 +82,8 @@ public class Guild
 
         for (int x = 0; x < quantity; x++)
         {
-            Hero newHero = new Hero(this, Rng.Rand.Next(1, level + 1));
+            Hero newHero = applicantsClass == null ? new Hero(this, Rng.Rand.Next(1, level + 1)) : new Hero(this, applicantsClass, Rng.Rand.Next(1, level + 1));
 
-            //Hero newHero = new Hero(this, Class.Support, 1);
             newHero.Transform = new Transform(World.Map.GetSpawnPosition() + newHero.Transform.Size / 2);
 
             Applicants.Add(newHero);
@@ -106,10 +116,10 @@ public class Guild
         World.UIController.RefreshInfo();
         return false;
     }
-    
+
     public void RefreshAvailableDungeons(bool configurable, int quantity = 5, int level = 1)
     {
-        var d = new Dungeon(World); 
+        var d = new Dungeon(World);
         if (configurable)
         {
             for (int i = 0; i < quantity; i++)
@@ -176,34 +186,74 @@ public class Guild
                     rosterChanged = true;
                     Console.WriteLine($"[SISTEMA] Falha no pagamento de {hero.Name}. Satisfação: {hero.Satisfaction}");
                 }
-
-                if (hero.Satisfaction <= 0)
-                {
-                    Console.WriteLine($"{hero.Name} cansou de ser desrespeitado e foi embora.");
-                    rosterChanged = true;
-
-                    if (Heroes.Contains(hero))
-                    {
-                        World.Destroy(hero);
-                        Heroes.Remove(hero);
-                    }
-                    else
-                    {
-                        foreach (MissionManager mission in Missions)
-                        {
-                            if (mission.Party.Contains(hero))
-                            {
-                                mission.Party.Remove(hero);
-                            }
-                        }
-                    }
-                }
             }
         }
 
         if (rosterChanged)
         {
             World.UIController.RefreshInfo();
+        }
+    }
+
+    public void PayHero(Hero hero)
+    {
+        if (Gold >= hero.Wage)
+        {
+            Gold -= hero.Wage;
+            hero.Pay();
+        }
+    }
+
+    public void Resignation(Hero hero)
+    {
+        if (Heroes.Contains(hero))
+        {
+            World.Destroy(hero);
+            Heroes.Remove(hero);
+        }
+        else
+        {
+            foreach (MissionManager mission in Missions)
+            {
+                if (mission.Party.Contains(hero))
+                {
+                    mission.Party.Remove(hero);
+                }
+            }
+        }
+        Console.WriteLine($"{hero.Name} resigned");
+        World.UIController.RefreshInfo();
+    }
+
+    public void StartMission(MissionManager mission)
+    {
+        Missions.Add(mission);
+        mission.Start();
+    }
+
+    public void GuildTimeHelper(DateTime currentTime, DateTime lastTime)
+    {
+        if (currentTime.Day != lastTime.Day)
+        {
+            HeroesRest();
+            PayDay();
+            Economy.HandleInterest(ref Debt);
+            RefreshApplicants(null);
+        }
+        if (currentTime.Month != lastTime.Month)
+        {
+        }
+        if (currentTime.Year != lastTime.Year)
+        {
+
+        }
+    }
+
+    public void HeroesRest()
+    {
+        foreach (var hero in Heroes)
+        {
+            hero.Rest();
         }
     }
 }

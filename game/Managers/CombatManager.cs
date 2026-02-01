@@ -5,6 +5,43 @@ using System.Collections.Generic;
 
 public class CombatManager
 {
+    private Queue<Entity> _turnOrder = new();
+    public void CombatEncounterStep(Dungeon dungeon, DungeonRoom room, List<Hero> GuildParty)
+    {
+        Context = new CombatContext { Dungeon = dungeon, Room = room, Party = GuildParty };
+
+        if (_turnOrder.Count == 0)
+        {
+            var allCombatants = new List<Entity>();
+            allCombatants.AddRange(GuildParty.Where(h => h.HP > 0));
+            allCombatants.AddRange(room.Enemies.Where(e => e.HP > 0));
+
+            _turnOrder.Clear();
+
+            foreach (var c in allCombatants.OrderByDescending(c => c.Initiative))
+            {
+                _turnOrder.Enqueue(c);
+            }
+        }
+
+        if (_turnOrder.TryDequeue(out Entity currentCombatant))
+        {
+            if (!currentCombatant.IsAlive())
+            {
+                return;
+            }
+            var strategy = CombatStrategyFactory.GetBehavior(currentCombatant.Class);
+            strategy.ExecuteTurn(currentCombatant, Context);
+            var allInRoom = new List<Entity>();
+            
+            allInRoom.AddRange(GuildParty);
+            allInRoom.AddRange(room.Enemies);
+
+            CheckDeaths(allInRoom, dungeon);
+        }
+    }
+
+
     public CombatContext Context = new();
     public class CombatContext
     {
@@ -116,23 +153,31 @@ public class CombatManager
             bool concentrationCheck = healer.RollDice() > 30;
 
             int critThreshold = healer.GetCritThreshold();
-            bool isCrit = healer.RollDice() >= critThreshold;
+            var dice = healer.RollDice();
+            bool isCrit = dice >= critThreshold;
 
             float multiplier = 1.0f;
+
+            if (concentrationCheck)
+            {
+                result.IsHit = true;
+            }
+            else
+            {
+                result.LogMessage = $"💦 {healer.Name} não conseguiu se concentrar na cura";
+            }
 
             if (isCrit)
             {
                 multiplier = 2.0f;
                 result.IsCritical = true;
             }
-            else
+            else if(dice < 5)
             {
                 multiplier = 0.5f;
-                result.LogMessage = $"💦 {healer.Name} se distraiu e curou pouco...";
             }
 
             result.FinalDamage = Math.Max(1, (int)(baseHeal * multiplier));
-            result.IsHit = true;
 
             return result;
         }
@@ -170,7 +215,7 @@ public class CombatManager
 
             var alliesTanks = alliesOfTarget.Where(e => e.Class == Class.Tank).ToList();
 
-            if (alliesTanks.Count > 0 && Rng.Rand.Next(0, 100) > 75)
+            if (alliesTanks.Count > 0 && Rng.Rand.Next(0, 100) > 70)
             {
                 var interceptor = alliesTanks[Rng.Rand.Next(0, alliesTanks.Count)];
                 bool isExhausted = (interceptor is Hero h && h.Energy <= 0 || interceptor is Enemy e && e.Energy <= 0);
@@ -272,7 +317,7 @@ public class CombatManager
                         int healAmount = heal.FinalDamage;
                         string critText = heal.IsCritical ? "Crit:" : "";
                         lowestAlly.Heal(healAmount);
-                        context.Dungeon.Logs.Add($"💚 {actor.Name} curou {lowestAlly.Name}...");
+                        context.Dungeon.Logs.Add($"{actor.Name} {critText} 💚 {lowestAlly.Name}");
                     }
                     else
                     {
@@ -301,43 +346,6 @@ public class CombatManager
         }
     }
 
-
-
-    public void CombatEncounter(Dungeon dungeon, DungeonRoom room, List<Hero> GuildParty)
-    {
-        Context = new CombatContext
-        {
-            Dungeon = dungeon,
-            Room = room,
-            Party = GuildParty
-        };
-
-        var allCombatants = new List<Entity>();
-        allCombatants.AddRange(GuildParty.Where(h => h.HP > 0));
-        allCombatants.AddRange(room.Enemies.Where(e => e.HP > 0));
-        allCombatants = allCombatants.OrderByDescending(c => (c is Hero h) ? h.Initiative : ((Enemy)c).Initiative).ToList();
-
-        foreach (Entity combatant in allCombatants)
-        {
-            if (!combatant.IsAlive()) continue;
-
-            if (GuildParty.All(h => !h.IsAlive()))
-            {
-                dungeon.Logs.Add("💀 Todos os aliados morreram.");
-                break;
-            }
-            if (room.Enemies.All(e => !e.IsAlive()))
-            {
-                dungeon.Logs.Add("✨ Vitória! Sala limpa.");
-                break;
-            }
-
-            var strategy = CombatStrategyFactory.GetBehavior(combatant.Class);
-            strategy.ExecuteTurn(combatant, Context);
-            CheckDeaths(allCombatants, dungeon);
-
-        }
-    }
     private void CheckDeaths(List<Entity> combatants, Dungeon dungeon)
     {
         foreach (var c in combatants)

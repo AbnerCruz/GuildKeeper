@@ -5,4 +5,6 @@ public enum UIState
     GuildApplicants,
     DungeonShopAndInventory,
     MissionSelectParty,
+    Shopping,
+    Building,
 }

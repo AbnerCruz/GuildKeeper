@@ -5,7 +5,7 @@ public class MissionManager
 {
     public World World;
     public List<Hero> Party = new();
-    Dungeon Dungeon;
+    public Dungeon Dungeon;
 
     public MissionManager(World world, Dungeon dungeon)
     {
@@ -15,10 +15,20 @@ public class MissionManager
 
     public void Start()
     {
+        if (Dungeon.DungeonState != DungeonState.NotStarted) return;
         Dungeon.DungeonState = DungeonState.Cleaning;
-        Console.WriteLine("Dungeon Cleaning");
-        Dungeon.DungeonCycle();
+        Dungeon.NextActionTime = World.WorldTimeManager.CurrentTime.AddMinutes(Rng.Rand.Next(Dungeon.smallDelay, Dungeon.timePerRoom));
+
+        Dungeon.PrepareDungeon(Party);
+    }
+
+    public void Update()
+    {
         Party.RemoveAll(h => h.HP <= 0);
+        if (Dungeon != null)
+        {
+            Dungeon.UpdateDungeon();
+        }
     }
 
     public bool AddToParty(Hero hero)

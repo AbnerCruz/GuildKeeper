@@ -4,6 +4,7 @@ public static class Time
 {
     public static GameTime gameTime;
     public static float DeltaTime => (float)gameTime.ElapsedGameTime.TotalSeconds;
+    public static double Tick = 0.2;
 
     public static bool Timer(ref float timer)
     {

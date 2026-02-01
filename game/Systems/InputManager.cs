@@ -17,7 +17,7 @@ public class InputManager
 
         if (Input.Keyboard.Pressed(Keys.R))
         {
-            WorldInstance.Guild.RefreshApplicants(true, 5, Rng.Rand.Next(1, WorldInstance.Guild.Level + 2));
+            WorldInstance.Guild.RefreshApplicants(null, true, 5, Rng.Rand.Next(1, WorldInstance.Guild.Level + 2));
             WorldInstance.Guild.RefreshAvailableDungeons(true, 5, Rng.Rand.Next(1, WorldInstance.Guild.Level + 2));
         }
         if (Input.Keyboard.Pressed(Keys.S))
